@@ -1,2 +1,3 @@
-# daily-order-excel-upload-filtering-grouping-and-karigar-wise-pdf-export-option-b
-Exported from Caffeine project: Daily order Excel upload, filtering/grouping, and karigar-wise PDF export (Option B)
+## Daily order Excel upload, filtering/grouping, and karigar-wise PDF export (Option B)
+
+To run app build and run docker image: `docker build -t app . docker run -it --network host app`

@@ -1,0 +1,135 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-implement-a-daily-orders-excel-upload-flow-where-a-user-can-select-a-date-default-today-and-upload-the-portal-exported-excel-file-for-that-date",
+      "featureTitle": "Implement a daily orders Excel upload flow where a user can select a date (default: today) and upload the portal-exported Excel file for that date.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+        "frontend/src/main.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-parse-the-uploaded-excel-file-and-extract-only-these-columns-for-each-order-row-order-no-design-weight-size-quantity-remarks",
+      "featureTitle": "Parse the uploaded Excel file and extract only these columns for each order row: Order No, Design, Weight, Size, Quantity, Remarks.",
+      "files": [
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+        "frontend/src/features/daily-orders/components/OrdersTable.tsx",
+        "frontend/src/features/daily-orders/excel/parseDailyOrders.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-provide-interactive-filtering-and-sorting-of-the-extracted-daily-orders-including-sorting-by-design-and-searching-filtering-across-the-extracted-fields",
+      "featureTitle": "Provide interactive filtering and sorting of the extracted daily orders, including sorting by Design and searching/filtering across the extracted fields.",
+      "files": [
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+        "frontend/src/features/daily-orders/components/OrdersToolbar.tsx",
+        "frontend/src/features/daily-orders/hooks/useOrderFilters.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-support-grouping-orders-karigar-wise-and-factory-wise-if-needed-to-produce-separate-per-group-views-and-exports-since-the-extracted-excel-fields-do-not-include-karigar-factory-provide-an-in-app-way-to-assign-each-order-or-each-design-to-a-karigar-and-optional-factory-for-the-current-day-and-reuse-those-assignments-for-consistent-grouping",
+      "featureTitle": "Support grouping orders karigar-wise (and factory-wise if needed) to produce separate per-group views and exports. Since the extracted Excel fields do not include karigar/factory, provide an in-app way to assign each order (or each Design) to a karigar and optional factory for the current day, and reuse those assignments for consistent grouping.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/components/LoginButton.tsx",
+        "frontend/src/components/ProfileSetupModal.tsx",
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+        "frontend/src/features/daily-orders/components/AssignmentPanel.tsx",
+        "frontend/src/features/daily-orders/components/GroupsSidebar.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-generate-downloadable-pdf-exports-for-each-karigar-group-for-the-selected-date-containing-that-group-s-orders-with-the-extracted-fields-order-no-design-weight-size-quantity-remarks-and-a-clear-header-including-the-date-and-group-name",
+      "featureTitle": "Generate downloadable PDF exports for each karigar group for the selected date, containing that group’s orders with the extracted fields (Order No, Design, Weight, Size, Quantity, Remarks) and a clear header including the date and group name.",
+      "files": [
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+        "frontend/src/features/daily-orders/components/ExportPanel.tsx",
+        "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-create-a-coherent-distinct-visual-theme-for-the-app-colors-typography-layout-and-apply-it-consistently-across-the-upload-table-grouping-and-export-screens",
+      "featureTitle": "Create a coherent, distinct visual theme for the app (colors, typography, layout) and apply it consistently across the upload, table, grouping, and export screens.",
+      "files": [
+        "frontend/index.css",
+        "frontend/src/App.tsx",
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+        "frontend/tailwind.config.js"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-7"
+      ],
+      "confidence": "high"
+    }
+  ]
+}

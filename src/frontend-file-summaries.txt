@@ -1,0 +1,20 @@
+{
+  "frontend/src/App.tsx": "Main application component with authentication gate, header with login button, daily orders page, and footer with attribution.",
+  "frontend/src/components/LoginButton.tsx": "Login/logout button component using Internet Identity with loading states and query cache clearing on logout.",
+  "frontend/src/components/ProfileSetupModal.tsx": "Modal dialog that prompts first-time users to enter their name for profile setup.",
+  "frontend/src/hooks/useQueries.ts": "React Query hooks for all backend operations including user profiles, daily orders, and karigar assignments with proper cache invalidation.",
+  "frontend/src/features/daily-orders/DailyOrdersPage.tsx": "Main page for daily orders management with date selection, CSV upload, filtering, karigar grouping, and HTML export functionality with updated file type messaging.",
+  "frontend/src/features/daily-orders/excel/parseDailyOrders.ts": "CSV file parser that extracts the 6 required columns (Order No, Design, Weight, Size, Quantity, Remarks) with validation and error handling, using native browser APIs without external dependencies.",
+  "frontend/src/features/daily-orders/components/OrdersTable.tsx": "Table component displaying orders with the 6 extracted fields, selection checkboxes, and karigar assignment badges.",
+  "frontend/src/features/daily-orders/components/OrdersToolbar.tsx": "Toolbar with search input and design sort toggle for filtering and organizing orders.",
+  "frontend/src/features/daily-orders/components/AssignmentPanel.tsx": "Dialog for assigning selected orders to a karigar with optional factory field.",
+  "frontend/src/features/daily-orders/components/GroupsSidebar.tsx": "Sidebar showing karigar groups with order counts and selection functionality.",
+  "frontend/src/features/daily-orders/components/ExportPanel.tsx": "Button component for exporting selected karigar group as HTML report with loading state and proper disabled state handling.",
+  "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts": "HTML report generator that creates formatted karigar-wise order reports and downloads them as HTML files, using native browser APIs without external PDF libraries.",
+  "frontend/src/features/daily-orders/hooks/useOrderFilters.ts": "Custom hook managing search text and sort order state with filtered/sorted orders computation.",
+  "frontend/src/index.css": "Global styles with OKLCH color system using a purple-based primary color palette for light and dark modes.",
+  "frontend/tailwind.config.js": "Tailwind configuration with extended color tokens, Inter font family, and custom shadows for a polished design system.",
+  "frontend/package.json": "Package configuration with added type declarations for jspdf-autotable and dependencies for Excel parsing (xlsx) and PDF generation (jspdf, jspdf-autotable).",
+  "frontend/src/types/xlsx.d.ts": "TypeScript type declarations for the xlsx library providing WorkBook, WorkSheet interfaces and utility functions.",
+  "frontend/src/types/jspdf.d.ts": "TypeScript type declarations for jspdf and jspdf-autotable libraries with class definitions and method signatures."
+}

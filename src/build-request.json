@@ -1,0 +1,150 @@
+{
+  "kind": "build_request",
+  "title": "Daily order Excel upload, filtering/grouping, and karigar-wise PDF export (Option B)",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Implement a daily orders Excel upload flow where a user can select a date (default: today) and upload the portal-exported Excel file for that date.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Option B"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A page/section exists for 'Daily Orders' with a date picker defaulting to the current date.",
+        "User can choose an Excel file to upload (common .xls/.xlsx formats).",
+        "UI clearly shows upload success/failure states and the selected date/file name."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Parse the uploaded Excel file and extract only these columns for each order row: Order No, Design, Weight, Size, Quantity, Remarks.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Only details of 1) Order No 2) Design 3) Weight 4) Size  5) Quantity 6) Remarks Only these columns data need to be extracted from the excel on a daily basis."
+        ]
+      },
+      "acceptanceCriteria": [
+        "After upload, a table renders with only the 6 required fields (no extra columns displayed).",
+        "If any of the required columns are missing/unreadable, the app shows an English validation error explaining what is missing.",
+        "Empty cells are handled gracefully (rendered as blank, not as 'undefined' or crashing)."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Provide interactive filtering and sorting of the extracted daily orders, including sorting by Design and searching/filtering across the extracted fields.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "sort it as design wise and filter it out"
+        ]
+      },
+      "acceptanceCriteria": [
+        "User can sort the table by Design (ascending/descending).",
+        "User can filter/search orders using a text input (matching at least Order No, Design, Remarks).",
+        "Filters/sorts update the displayed table immediately without re-uploading the file."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Support grouping orders karigar-wise (and factory-wise if needed) to produce separate per-group views and exports. Since the extracted Excel fields do not include karigar/factory, provide an in-app way to assign each order (or each Design) to a karigar and optional factory for the current day, and reuse those assignments for consistent grouping.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "filter it out for individual karigar wise",
+          "filtered factory wise and displayed seperatly."
+        ]
+      },
+      "acceptanceCriteria": [
+        "UI allows assigning a 'Karigar' (required for grouping) and 'Factory' (optional) to orders or Designs for the selected date.",
+        "User can view a grouped list (e.g., list of karigars/factories) and click into a group to see only its orders.",
+        "Assignments persist (saved in backend) so a page refresh does not lose grouping work for that date.",
+        "User can edit/remove assignments and the grouped views update accordingly."
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Generate downloadable PDF exports for each karigar group for the selected date, containing that group’s orders with the extracted fields (Order No, Design, Weight, Size, Quantity, Remarks) and a clear header including the date and group name.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "share it as pdfs for all different karigar wise on a daily basis."
+        ]
+      },
+      "acceptanceCriteria": [
+        "For a selected date, user can export a PDF for a specific karigar group.",
+        "Generated PDF includes a title/header with the selected date and the karigar name, and a tabular list of orders with the 6 extracted fields.",
+        "PDF generation works fully from the uploaded file + in-app assignments without requiring external services.",
+        "If a karigar group has zero orders, export is disabled or produces a PDF with a clear 'No orders' message (English)."
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "Store daily uploaded order data and the derived grouping assignments in the backend so the user can reopen past dates and re-export PDFs without re-uploading the Excel file.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "upload the daily Excel file",
+          "on a daily basis"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Backend exposes methods to save and load daily orders keyed by date.",
+        "Backend exposes methods to save and load karigar/factory assignment data keyed by date.",
+        "Frontend provides a way to load a previously saved date and see the same order table, groupings, and export options."
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "text": "Create a coherent, distinct visual theme for the app (colors, typography, layout) and apply it consistently across the upload, table, grouping, and export screens.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Create an app to make order management system easier."
+        ]
+      },
+      "acceptanceCriteria": [
+        "UI uses a consistent design system across all pages/sections (spacing, headings, button styles, table styling).",
+        "Theme avoids default-looking unstyled layouts and is applied consistently to empty/loading/error states.",
+        "All user-facing text is in English."
+      ]
+    }
+  ],
+  "constraints": [
+    "Do not attempt to automate logging into https://mpn.malabargroup.com/ or perform browser-like clicking/scraping from the app; the workflow must be manual Excel upload (Option B).",
+    "Use English for all user-facing UI strings."
+  ],
+  "nonGoals": [
+    "Building any headless-browser automation to download the Excel from the portal at 9:00pm IST.",
+    "Integrating third-party authentication providers (only Internet Identity is supported, and it is not required unless explicitly requested).",
+    "Real-time messaging/notifications for daily extraction reminders."
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

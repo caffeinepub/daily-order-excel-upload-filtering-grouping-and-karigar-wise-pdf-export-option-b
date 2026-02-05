@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 3,
+  "summary": "Order management app where the user manually uploads the daily Excel export (Option B). The app extracts specific columns, filters/sorts orders by design and karigar/factory, and generates daily karigar-wise PDF outputs.",
+  "architectural_notes": [
+    "Portal automation/scraping is out of scope; orders will be provided via manual Excel upload (Option B).",
+    "Do not store or hardcode portal credentials in the app; treat any login details as secrets and exclude from logs/storage."
+  ],
+  "known_issues": [],
+  "isFixRequest": false,
+  "existing_features": [
+    {
+      "id": "feature-implement-a-daily-orders-excel-upload-flow-where-a-user-can-select-a-date-default-today-and-upload-the-portal-exported-excel-file-for-that-date",
+      "title": "Implement a daily orders Excel upload flow where a user can select a date (default: today) and upload the portal-exported Excel file for that date.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-parse-the-uploaded-excel-file-and-extract-only-these-columns-for-each-order-row-order-no-design-weight-size-quantity-remarks",
+      "title": "Parse the uploaded Excel file and extract only these columns for each order row: Order No, Design, Weight, Size, Quantity, Remarks.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-provide-interactive-filtering-and-sorting-of-the-extracted-daily-orders-including-sorting-by-design-and-searching-filtering-across-the-extracted-fields",
+      "title": "Provide interactive filtering and sorting of the extracted daily orders, including sorting by Design and searching/filtering across the extracted fields.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-support-grouping-orders-karigar-wise-and-factory-wise-if-needed-to-produce-separate-per-group-views-and-exports-since-the-extracted-excel-fields-do-not-include-karigar-factory-provide-an-in-app-way-to-assign-each-order-or-each-design-to-a-karigar-and-optional-factory-for-the-current-day-and-reuse-those-assignments-for-consistent-grouping",
+      "title": "Support grouping orders karigar-wise (and factory-wise if needed) to produce separate per-group views and exports. Since the extracted Excel fields do not include karigar/factory, provide an in-app way to assign each order (or each Design) to a karigar and optional factory for the current day, and reuse those assignments for consistent grouping.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-generate-downloadable-pdf-exports-for-each-karigar-group-for-the-selected-date-containing-that-group-s-orders-with-the-extracted-fields-order-no-design-weight-size-quantity-remarks-and-a-clear-header-including-the-date-and-group-name",
+      "title": "Generate downloadable PDF exports for each karigar group for the selected date, containing that group’s orders with the extracted fields (Order No, Design, Weight, Size, Quantity, Remarks) and a clear header including the date and group name.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-create-a-coherent-distinct-visual-theme-for-the-app-colors-typography-layout-and-apply-it-consistently-across-the-upload-table-grouping-and-export-screens",
+      "title": "Create a coherent, distinct visual theme for the app (colors, typography, layout) and apply it consistently across the upload, table, grouping, and export screens.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Excel upload flow for daily orders (manual upload)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Parse uploaded Excel and extract only: Order No, Design, Weight, Size, Quantity, Remarks",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Filter/sort orders by design and group/filter karigar-wise (and factory-wise if applicable)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Generate and export/share karigar-wise PDFs from filtered daily orders",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-10",
+      "summary": "Store daily uploaded order data and the derived grouping assignments in the backend so the user can reopen past dates and re-export PDFs without re-uploading the Excel file.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "Daily order Excel upload, filtering/grouping, and karigar-wise PDF export (Option B)",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}
