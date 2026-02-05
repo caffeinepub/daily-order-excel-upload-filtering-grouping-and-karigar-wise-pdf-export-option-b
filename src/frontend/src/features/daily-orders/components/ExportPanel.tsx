@@ -1,33 +1,35 @@
 import { FileDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { exportKarigarPdf } from '../pdf/exportKarigarPdf';
+import { exportFactoryHtml } from '../pdf/exportFactoryHtml';
 import type { ParsedOrder } from '../excel/parseDailyOrders';
+import type { KarigarAssignment } from '@/backend';
 import { useState } from 'react';
 
 interface ExportPanelProps {
   selectedDate: string;
-  selectedKarigar: string | null;
-  ordersByKarigar: Map<string, ParsedOrder[]>;
+  selectedFactory: string | null;
+  ordersByFactory: Map<string, ParsedOrder[]>;
+  assignments: KarigarAssignment[];
 }
 
-export default function ExportPanel({ selectedDate, selectedKarigar, ordersByKarigar }: ExportPanelProps) {
+export default function ExportPanel({ selectedDate, selectedFactory, ordersByFactory, assignments }: ExportPanelProps) {
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
-    if (!selectedKarigar) return;
+    if (!selectedFactory) return;
 
-    const orders = ordersByKarigar.get(selectedKarigar) || [];
+    const orders = ordersByFactory.get(selectedFactory) || [];
     if (orders.length === 0) return;
 
     setIsExporting(true);
     try {
-      await exportKarigarPdf(selectedDate, selectedKarigar, orders);
+      await exportFactoryHtml(selectedDate, selectedFactory, orders, assignments);
     } finally {
       setIsExporting(false);
     }
   };
 
-  const canExport = selectedKarigar && (ordersByKarigar.get(selectedKarigar)?.length || 0) > 0;
+  const canExport = selectedFactory && (ordersByFactory.get(selectedFactory)?.length || 0) > 0;
 
   return (
     <Button
@@ -35,7 +37,7 @@ export default function ExportPanel({ selectedDate, selectedKarigar, ordersByKar
       size="sm"
       onClick={handleExport}
       disabled={!canExport || isExporting}
-      title={!selectedKarigar ? 'Select a karigar to export' : ''}
+      title={!selectedFactory ? 'Select a factory to export' : ''}
     >
       {isExporting ? (
         <>

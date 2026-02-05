@@ -1,67 +1,99 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-05T20:08:05.025Z",
+  "generatedAt": "2026-02-05T20:57:08.007Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 4,
+    "total": 6,
+    "implemented": 5,
     "items": [
       {
-        "id": "REQ-10",
-        "summary": "Implement parsing of the karigar mapping workbook (e.g., \"mbar0502 copy\") that contains three sheets named \"1\", \"2\", and \"3\"; combine these sheets into a single Design → Karigar mapping and use it to automatically assign/group orders karigar-wise for the selected date based on each order’s Design value.",
+        "id": "REQ-20",
+        "summary": "Fix karigar mapping Excel parsing so karigar names are assigned correctly by reading the correct columns and prioritizing sheets \"1\" and \"3\" (and treating the \"Name\" column as the generic product name for the product/design code).",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "frontend/src/hooks/useQueries.ts"
+          "frontend/src/backend.d.ts"
         ],
         "matchedFiles": [
           "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
+          "frontend/src/backend.d.ts"
         ]
       },
       {
-        "id": "REQ-11",
-        "summary": "Add a safe 'Apply mapping' workflow and visibility into mapping results, including how many orders were assigned per karigar and which order designs could not be matched; ensure manual assignment remains available and can override auto-assigned results when needed.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
-        ]
+        "id": "REQ-21",
+        "summary": "Persist the karigar mapping workbook as a standard (non-daily) dataset in the backend, with APIs to save a full mapping replacement on upload and to fetch the currently saved mapping for use across all dates.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       },
       {
-        "id": "REQ-8",
-        "summary": "Update the Daily Orders page to support uploading two separate files for the selected date (default: today): (1) an OrderList workbook that contains cumulative orders and must be displayed/stored as the selected date’s orders, and (2) a karigar mapping workbook (\"mbar0502 copy\") used to auto-group/filter orders karigar-wise.",
+        "id": "REQ-22",
+        "summary": "Refactor the app entry UI to show a landing header titled \"Shree I Jewellery Order Management System\" and provide a 3-tab navigation: (1) \"Order List\" (factory-wise view), (2) \"Daily Order Upload\", and (3) \"Karigar Mapping\".",
         "status": "implemented",
         "plannedFiles": [
+          "frontend/src/App.tsx",
+          "frontend/src/features/order-list/OrderListTab.tsx",
           "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "frontend/src/features/daily-orders/components/GroupsSidebar.tsx"
+          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
+          "frontend/src/App.tsx",
+          "frontend/src/features/order-list/OrderListTab.tsx",
+          "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx"
         ]
       },
       {
-        "id": "REQ-9",
-        "summary": "Add support for parsing the provided OrderList Excel workbook format (e.g., OrderList17) from .xlsx/.xls (and still accept .csv) and extract the same required order fields per row: Order No, Design, Weight, Size, Quantity, Remarks.",
+        "id": "REQ-23",
+        "summary": "Update the \"Order List\" tab to display orders factory-wise (one factory visible at a time) with swipe-based navigation between factories, and within each factory group orders karigar-wise with a per-karigar download action displayed above each karigar group.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "frontend/src/types/xlsx.d.ts",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
+          "frontend/src/features/order-list/OrderListTab.tsx",
+          "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
+          "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts",
+          "frontend/src/features/daily-orders/components/ExportPanel.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "frontend/src/types/xlsx.d.ts",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
+          "frontend/src/features/order-list/OrderListTab.tsx",
+          "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx"
+        ]
+      },
+      {
+        "id": "REQ-24",
+        "summary": "When displaying orders in the factory/karigar views, sort orders so that items with the same design/product code are grouped together, and display the generic product name (from the mapping workbook \"Name\" column) alongside the design/product code in the UI.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
+          "frontend/src/features/daily-orders/components/OrdersTable.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/features/order-list/OrderListTab.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
+          "frontend/src/features/daily-orders/components/OrdersTable.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/features/order-list/OrderListTab.tsx"
+        ]
+      },
+      {
+        "id": "REQ-25",
+        "summary": "Update the \"Karigar Mapping\" tab to allow uploading an updated mapping workbook at any time (independent of daily order uploads), show an English confirmation/error state, and make the newly uploaded mapping immediately available to the Order List and mapping-apply workflows.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+          "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+          "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx"
         ]
       }
     ]
@@ -70,20 +102,22 @@
     "backend/main.mo",
     "backend/migration.mo",
     "build-request.json",
-    "build-template/README.md",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/index.html",
+    "frontend/src/App.tsx",
     "frontend/src/backend.d.ts",
     "frontend/src/backend.ts",
     "frontend/src/declarations/backend.did.d.ts",
     "frontend/src/declarations/backend.did.js",
     "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+    "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
     "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
-    "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
+    "frontend/src/features/daily-orders/components/OrdersTable.tsx",
     "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-    "frontend/src/types/xlsx.d.ts",
+    "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+    "frontend/src/features/order-list/OrderListTab.tsx",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

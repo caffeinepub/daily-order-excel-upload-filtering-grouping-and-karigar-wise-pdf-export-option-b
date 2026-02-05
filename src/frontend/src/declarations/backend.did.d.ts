@@ -36,12 +36,27 @@ export interface _SERVICE {
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getDailyOrders' : ActorMethod<[Date], Array<Order>>,
   'getKarigarAssignments' : ActorMethod<[Date], Array<KarigarAssignment>>,
-  'getKarigarForDesign' : ActorMethod<[string], [] | [string]>,
+  'getKarigarAssignmentsForDesign' : ActorMethod<
+    [string],
+    Array<[string, string]>
+  >,
+  'getKarigarForDesign' : ActorMethod<[string, string], [] | [string]>,
+  'getKarigarMappingSheet' : ActorMethod<
+    [string],
+    [] | [Array<[string, string]>]
+  >,
+  'getKarigarMappingWorkbook' : ActorMethod<
+    [],
+    Array<[string, Array<[string, string]>]>
+  >,
   'getOrdersByKarigar' : ActorMethod<[Date, string], Array<Order>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  'parseKarigarMappingFile' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'saveKarigarMappingWorkbook' : ActorMethod<
+    [Array<[string, Array<[string, string]>]>],
+    undefined
+  >,
   'storeDailyOrders' : ActorMethod<[Date, Array<Order>], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

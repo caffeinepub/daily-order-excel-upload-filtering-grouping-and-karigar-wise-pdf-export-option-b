@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
+import { useInternetIdentity } from './useInternetIdentity';
 import type { UserProfile, Order, KarigarAssignment } from '../backend';
 
 export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   const query = useQuery<UserProfile | null>({
     queryKey: ['currentUserProfile'],
@@ -11,7 +13,7 @@ export function useGetCallerUserProfile() {
       if (!actor) throw new Error('Actor not available');
       return actor.getCallerUserProfile();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && !!identity,
     retry: false,
   });
 
@@ -62,6 +64,9 @@ export function useStoreDailyOrders() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['dailyOrders', variables.date] });
     },
+    onError: (error) => {
+      console.error('Failed to store daily orders:', error);
+    },
   });
 }
 
@@ -99,6 +104,34 @@ export function useAssignKarigar() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['karigarAssignments', variables.date] });
+    },
+  });
+}
+
+export function useGetKarigarMappingWorkbook() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<Array<[string, Array<[string, string]>]>>({
+    queryKey: ['karigarMappingWorkbook'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getKarigarMappingWorkbook();
+    },
+    enabled: !!actor && !actorFetching,
+  });
+}
+
+export function useSaveKarigarMappingWorkbook() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (workbook: Array<[string, Array<[string, string]>]>) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.saveKarigarMappingWorkbook(workbook);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['karigarMappingWorkbook'] });
     },
   });
 }

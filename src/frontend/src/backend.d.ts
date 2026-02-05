@@ -33,11 +33,14 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getDailyOrders(date: Date_): Promise<Array<Order>>;
     getKarigarAssignments(date: Date_): Promise<Array<KarigarAssignment>>;
-    getKarigarForDesign(design: string): Promise<string | null>;
+    getKarigarAssignmentsForDesign(design: string): Promise<Array<[string, string]>>;
+    getKarigarForDesign(sheetName: string, design: string): Promise<string | null>;
+    getKarigarMappingSheet(sheetName: string): Promise<Array<[string, string]> | null>;
+    getKarigarMappingWorkbook(): Promise<Array<[string, Array<[string, string]>]>>;
     getOrdersByKarigar(date: Date_, karigar: string): Promise<Array<Order>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
-    parseKarigarMappingFile(path: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveKarigarMappingWorkbook(workbook: Array<[string, Array<[string, string]>]>): Promise<void>;
     storeDailyOrders(date: Date_, orders: Array<Order>): Promise<void>;
 }

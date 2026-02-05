@@ -42,7 +42,26 @@ export const idlService = IDL.Service({
       [IDL.Vec(KarigarAssignment)],
       ['query'],
     ),
-  'getKarigarForDesign' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
+  'getKarigarAssignmentsForDesign' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))],
+      ['query'],
+    ),
+  'getKarigarForDesign' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Opt(IDL.Text)],
+      ['query'],
+    ),
+  'getKarigarMappingSheet' : IDL.Func(
+      [IDL.Text],
+      [IDL.Opt(IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)))],
+      ['query'],
+    ),
+  'getKarigarMappingWorkbook' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
+      ['query'],
+    ),
   'getOrdersByKarigar' : IDL.Func(
       [Date, IDL.Text],
       [IDL.Vec(Order)],
@@ -54,8 +73,12 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-  'parseKarigarMappingFile' : IDL.Func([IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'saveKarigarMappingWorkbook' : IDL.Func(
+      [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
+      [],
+      [],
+    ),
   'storeDailyOrders' : IDL.Func([Date, IDL.Vec(Order)], [], []),
 });
 
@@ -96,9 +119,24 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(KarigarAssignment)],
         ['query'],
       ),
-    'getKarigarForDesign' : IDL.Func(
+    'getKarigarAssignmentsForDesign' : IDL.Func(
         [IDL.Text],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))],
+        ['query'],
+      ),
+    'getKarigarForDesign' : IDL.Func(
+        [IDL.Text, IDL.Text],
         [IDL.Opt(IDL.Text)],
+        ['query'],
+      ),
+    'getKarigarMappingSheet' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)))],
+        ['query'],
+      ),
+    'getKarigarMappingWorkbook' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
         ['query'],
       ),
     'getOrdersByKarigar' : IDL.Func(
@@ -112,8 +150,12 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-    'parseKarigarMappingFile' : IDL.Func([IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'saveKarigarMappingWorkbook' : IDL.Func(
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
+        [],
+        [],
+      ),
     'storeDailyOrders' : IDL.Func([Date, IDL.Vec(Order)], [], []),
   });
 };

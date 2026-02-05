@@ -1,14 +1,21 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 5,
-  "summary": "Order management app (Option B) where the user uploads two Excel files: (1) a cumulative OrderList file that should be treated as ‘today’s orders’ for display/processing, and (2) a multi-sheet mapping workbook that provides karigar names design-wise to enable automatic karigar-wise filtering/grouping and outputs.",
+  "projectStateVersion": 11,
+  "summary": "Order management app (Option B) where the user uploads a cumulative OrderList (treated as today/selected date’s orders) and uses a standard (not daily) multi-sheet karigar mapping workbook to auto-group/sort orders by Design code, then view orders factory-wise via swipeable factory screens and karigar-wise tabs with per-karigar download actions, within a 3-tab app layout and a landing page titled “Shree I Jewellery Order Management System”.",
   "architectural_notes": [
     "Portal automation/scraping is out of scope; orders will be provided via manual Excel upload (Option B).",
     "Do not store or hardcode portal credentials in the app; treat any login details as secrets and exclude from logs/storage.",
-    "Input will include two Excel uploads: a cumulative OrderList (treated as the selected day’s dataset) and a separate multi-sheet workbook used as a Design→Karigar mapping for grouping."
+    "Input will include two Excel uploads: a cumulative OrderList (treated as the selected day’s dataset) and a separate multi-sheet workbook used as a Design→Karigar mapping for grouping.",
+    "App should open without requiring user login/authentication (no auth gate on launch).",
+    "Add a landing page/title screen and a 3-tab app structure: Order List (factory-wise), Daily Order Upload, and Karigar Mapping.",
+    "Karigar mapping workbook is a standard/persistent dataset updated only when required via manual upload (not a daily upload).",
+    "The mapping workbook’s “Name” column represents a generic product name associated with the product/design code and must be handled accordingly when grouping/displaying."
   ],
-  "known_issues": [],
-  "isFixRequest": false,
+  "known_issues": [
+    "Excel upload/list is not reading the uploaded Excel file and the app fails/crashes during upload.",
+    "Karigar names are being mismatched due to incorrect parsing/usage of the karigar mapping workbook (sheets/columns), resulting in improper karigar-wise filtering/grouping."
+  ],
+  "isFixRequest": true,
   "existing_features": [
     {
       "id": "feature-implement-a-daily-orders-excel-upload-flow-where-a-user-can-select-a-date-default-today-and-upload-the-portal-exported-excel-file-for-that-date",
@@ -89,6 +96,102 @@
         "REQ-11"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-fix-the-orderlist-upload-flow-so-uploading-an-excel-file-xlsx-xls-does-not-crash-or-abort-the-upload-and-the-parsed-orders-are-shown-in-the-ui-after-upload",
+      "title": "Fix the OrderList upload flow so uploading an Excel file (.xlsx/.xls) does not crash or abort the upload, and the parsed orders are shown in the UI after upload.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-make-file-type-detection-in-the-orderlist-parser-robust-to-uppercase-extensions-and-common-filename-variations-by-using-case-insensitive-checks-e-g-xlsx-xls-and-or-mime-type-fallbacks",
+      "title": "Make file-type detection in the OrderList parser robust to uppercase extensions and common filename variations by using case-insensitive checks (e.g., .XLSX/.XLS) and/or MIME-type fallbacks.",
+      "reqIds": [
+        "REQ-13"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-frontend-handles-backend-upload-failures-gracefully-if-storing-parsed-orders-in-the-backend-fails-keep-the-parsed-orders-visible-in-the-ui-and-show-a-clear-english-error-indicating-saving-failed-separate-from-parsing-errors",
+      "title": "Ensure the frontend handles backend upload failures gracefully: if storing parsed orders in the backend fails, keep the parsed orders visible in the UI and show a clear English error indicating saving failed (separate from parsing errors).",
+      "reqIds": [
+        "REQ-14"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-the-login-requirement-on-app-open-so-the-daily-orders-ui-is-accessible-immediately-without-internet-identity-authentication",
+      "title": "Remove the login requirement on app open so the Daily Orders UI is accessible immediately without Internet Identity authentication.",
+      "reqIds": [
+        "REQ-15"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-change-the-current-karigars-grouping-ui-so-it-does-not-display-any-design-list-instead-show-only-the-different-factories-as-the-primary-grouping-navigation",
+      "title": "Change the current “Karigars” grouping UI so it does not display any design list; instead, show only the different factories as the primary grouping/navigation.",
+      "reqIds": [
+        "REQ-17"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-make-the-factory-views-premade-no-manual-karigar-selection-required-when-a-factory-is-selected-display-all-orders-grouped-karigar-wise-automatically-within-that-factory",
+      "title": "Make the factory views “premade” (no manual karigar selection required): when a factory is selected, display all orders grouped karigar-wise automatically within that factory.",
+      "reqIds": [
+        "REQ-18"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-swipe-based-navigation-to-move-between-factory-order-lists-and-provide-a-per-factory-download-export-action-so-the-user-can-swipe-to-a-factory-and-download-that-factory-s-order-list",
+      "title": "Add swipe-based navigation to move between factory order lists, and provide a per-factory download/export action so the user can swipe to a factory and download that factory’s order list.",
+      "reqIds": [
+        "REQ-19"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-karigar-mapping-excel-parsing-so-karigar-names-are-assigned-correctly-by-reading-the-correct-columns-and-prioritizing-sheets-1-and-3-and-treating-the-name-column-as-the-generic-product-name-for-the-product-design-code",
+      "title": "Fix karigar mapping Excel parsing so karigar names are assigned correctly by reading the correct columns and prioritizing sheets \"1\" and \"3\" (and treating the \"Name\" column as the generic product name for the product/design code).",
+      "reqIds": [
+        "REQ-20"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-refactor-the-app-entry-ui-to-show-a-landing-header-titled-shree-i-jewellery-order-management-system-and-provide-a-3-tab-navigation-1-order-list-factory-wise-view-2-daily-order-upload-and-3-karigar-mapping",
+      "title": "Refactor the app entry UI to show a landing header titled \"Shree I Jewellery Order Management System\" and provide a 3-tab navigation: (1) \"Order List\" (factory-wise view), (2) \"Daily Order Upload\", and (3) \"Karigar Mapping\".",
+      "reqIds": [
+        "REQ-22"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-order-list-tab-to-display-orders-factory-wise-one-factory-visible-at-a-time-with-swipe-based-navigation-between-factories-and-within-each-factory-group-orders-karigar-wise-with-a-per-karigar-download-action-displayed-above-each-karigar-group",
+      "title": "Update the \"Order List\" tab to display orders factory-wise (one factory visible at a time) with swipe-based navigation between factories, and within each factory group orders karigar-wise with a per-karigar download action displayed above each karigar group.",
+      "reqIds": [
+        "REQ-23"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-when-displaying-orders-in-the-factory-karigar-views-sort-orders-so-that-items-with-the-same-design-product-code-are-grouped-together-and-display-the-generic-product-name-from-the-mapping-workbook-name-column-alongside-the-design-product-code-in-the-ui",
+      "title": "When displaying orders in the factory/karigar views, sort orders so that items with the same design/product code are grouped together, and display the generic product name (from the mapping workbook \"Name\" column) alongside the design/product code in the UI.",
+      "reqIds": [
+        "REQ-24"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-karigar-mapping-tab-to-allow-uploading-an-updated-mapping-workbook-at-any-time-independent-of-daily-order-uploads-show-an-english-confirmation-error-state-and-make-the-newly-uploaded-mapping-immediately-available-to-the-order-list-and-mapping-apply-workflows",
+      "title": "Update the \"Karigar Mapping\" tab to allow uploading an updated mapping workbook at any time (independent of daily order uploads), show an English confirmation/error state, and make the newly uploaded mapping immediately available to the Order List and mapping-apply workflows.",
+      "reqIds": [
+        "REQ-25"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -134,6 +237,64 @@
       "id": "AR-12",
       "summary": "Treat the uploaded cumulative OrderList Excel as the selected date’s (default: today) orders (i.e., show all rows as today’s orders)",
       "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-17",
+      "summary": "Karigar screen should not display the Design list; show only different Factories as the primary grouping/navigation",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-18",
+      "summary": "Pre-made karigar-wise display of all orders (no manual choosing); user can swipe between factory order lists and download each factory’s list",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-19",
+      "summary": "Remove login requirement when the app is opened (no authentication gate on launch)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-21",
+      "summary": "Update backend authorization so anonymous users can read/write daily orders and karigar/factory assignments without trapping as unauthorized.",
+      "reqIds": [
+        "REQ-16"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-22",
+      "summary": "Add an app landing page on open showing title “Shree I Jewellery Order Management System” and provide a 3-tab navigation: (1) Order List (factory-wise), (2) Daily Order Upload, (3) Karigar Mapping management/upload.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-23",
+      "summary": "Correct karigar mapping parsing: specifically use sheets 1 & 3 appropriately and treat the “Name” column as the generic product name tied to the product/design code; ensure orders are matched and karigar names assigned correctly.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-24",
+      "summary": "In karigar-wise filtered views, add a download option above each karigar tab to export/download that karigar’s orders.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-25",
+      "summary": "Treat the karigar mapping workbook as a standard, persistent dataset (not changing daily); allow updating it only when required via manual upload in the Karigar Mapping tab.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-27",
+      "summary": "Persist the karigar mapping workbook as a standard (non-daily) dataset in the backend, with APIs to save a full mapping replacement on upload and to fetch the currently saved mapping for use across all dates.",
+      "reqIds": [
+        "REQ-21"
+      ],
       "status": "pending"
     }
   ],

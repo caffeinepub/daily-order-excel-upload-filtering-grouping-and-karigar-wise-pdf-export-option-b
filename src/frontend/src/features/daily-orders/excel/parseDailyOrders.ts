@@ -60,8 +60,45 @@ function parseExcel(buffer: ArrayBuffer): string[][] {
   return data as string[][];
 }
 
+// Detect file type with case-insensitive extension check and MIME type fallback
+function detectFileType(file: File): 'csv' | 'xlsx' | 'xls' | 'unsupported' {
+  const fileName = file.name.toLowerCase();
+  const mimeType = file.type.toLowerCase();
+  
+  // Check extension first (case-insensitive)
+  if (fileName.endsWith('.csv')) {
+    return 'csv';
+  }
+  if (fileName.endsWith('.xlsx')) {
+    return 'xlsx';
+  }
+  if (fileName.endsWith('.xls')) {
+    return 'xls';
+  }
+  
+  // Fallback to MIME type
+  if (mimeType === 'text/csv' || mimeType === 'application/csv') {
+    return 'csv';
+  }
+  if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+    return 'xlsx';
+  }
+  if (mimeType === 'application/vnd.ms-excel') {
+    return 'xls';
+  }
+  
+  return 'unsupported';
+}
+
 export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
   return new Promise((resolve, reject) => {
+    const fileType = detectFileType(file);
+    
+    if (fileType === 'unsupported') {
+      reject(new Error('Unsupported file format. Please upload .csv, .xlsx, or .xls files.'));
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = async (e) => {
@@ -75,17 +112,14 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
         let rows: string[][] = [];
 
         // Handle different file types
-        if (file.name.endsWith('.csv')) {
+        if (fileType === 'csv') {
           // Parse CSV
           const text = data as string;
           rows = parseCSV(text);
-        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-          // Parse Excel
+        } else {
+          // Parse Excel (xlsx or xls)
           const buffer = data as ArrayBuffer;
           rows = parseExcel(buffer);
-        } else {
-          reject(new Error('Unsupported file format. Please upload .csv, .xlsx, or .xls files.'));
-          return;
         }
 
         if (rows.length === 0) {
@@ -151,7 +185,7 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
 
         resolve(validOrders);
       } catch (error: any) {
-        reject(new Error(`Failed to parse file: ${error.message}`));
+        reject(new Error(`Failed to parse file: ${error.message || 'Unknown error'}`));
       }
     };
 
@@ -160,7 +194,7 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
     };
 
     // Read based on file type
-    if (file.name.endsWith('.csv')) {
+    if (fileType === 'csv') {
       reader.readAsText(file);
     } else {
       reader.readAsArrayBuffer(file);

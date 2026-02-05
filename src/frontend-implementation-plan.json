@@ -1,103 +1,156 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Two-file upload and Excel parsing for daily orders + karigar mapping auto-grouping",
+  "title": "Karigar mapping parsing + standard mapping usage + 3-tab landing with factory swipe order list",
   "requirements": [
     {
-      "id": "REQ-8",
-      "summary": "Update Daily Orders page to support two separate uploads per selected date: OrderList (cumulative orders stored/displayed as that date) and karigar mapping workbook (used only for grouping/assignments).",
+      "id": "REQ-20",
+      "summary": "Fix karigar mapping workbook parsing with header-based column detection, sheet priority (1 & 3), and capture generic product name from the \"Name\" column.",
       "acceptanceCriteria": [
-        "The page provides two clearly labeled upload inputs/areas: one for the OrderList file and one for the karigar mapping file.",
-        "Uploading the OrderList file replaces the current in-memory orders and stores them under the currently selected date (default today), regardless of whether the file contains historical/cumulative rows.",
-        "Uploading the mapping file does not overwrite the stored orders; it only affects karigar grouping/assignments for the selected date.",
-        "All user-facing UI text for the new controls is in English."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "operation": "modify",
-          "description": "Replace the single upload control with two clearly labeled upload controls: (1) \"Upload OrderList\" (accept .csv/.xlsx/.xls) that parses and stores orders for the selected date, and (2) \"Upload Karigar Mapping\" (accept .xlsx/.xls, optionally .csv) that loads mapping into local page state for later application. Ensure OrderList upload replaces in-memory orders and persists them under the currently selected date without being affected by mapping upload. Remove/replace any CSV-only helper text so all new user-facing text is English."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/components/GroupsSidebar.tsx",
-          "operation": "modify",
-          "description": "Adjust sidebar labeling/count behavior if needed to reflect karigar groups created from persisted assignments after mapping is applied (and keep 'All Orders' behavior consistent when there are orders but no groups yet)."
-        }
-      ]
-    },
-    {
-      "id": "REQ-9",
-      "summary": "Support parsing OrderList uploads from .xlsx/.xls as well as .csv, extracting Order No, Design, Weight, Size, Quantity, Remarks with clear missing-column errors.",
-      "acceptanceCriteria": [
-        "The OrderList upload accepts .xlsx/.xls and .csv files.",
-        "After upload, the app displays a table of parsed orders using the extracted fields (Order No, Design, Weight, Size, Quantity, Remarks).",
-        "If required columns are missing, the app shows a clear error describing which columns are missing.",
-        "The upload no longer blocks users with a 'Please export to CSV' error when they provide a valid .xlsx/.xls file."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "operation": "modify",
-          "description": "Extend the existing parser to handle .xlsx/.xls using the existing/available XLSX parsing capability (SheetJS-style) while keeping .csv support. Implement robust header detection and emit a clear error listing missing required columns (Order No, Design, Weight, Size, Quantity, Remarks). Remove the current hard-blocking error message that instructs users to export to CSV for valid .xlsx/.xls files."
-        },
-        {
-          "path": "frontend/src/types/xlsx.d.ts",
-          "operation": "modify",
-          "description": "Add minimal TypeScript type declarations (or module declaration) required for the XLSX parsing import used by the OrderList and mapping parsers, so the project compiles cleanly."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "operation": "modify",
-          "description": "Update the OrderList upload input accept list to include .csv,.xlsx,.xls, and ensure parsing errors from the enhanced parser are displayed in the existing error alert."
-        }
-      ]
-    },
-    {
-      "id": "REQ-10",
-      "summary": "Parse karigar mapping workbook with sheets \"1\", \"2\", \"3\" into a combined Design → Karigar mapping and use it to auto-assign/group orders for the selected date based on Design.",
-      "acceptanceCriteria": [
-        "The mapping upload accepts .xlsx/.xls (and optionally .csv if feasible) and reads sheets named \"1\", \"2\", and \"3\" when present.",
-        "The app derives karigar assignments for orders by matching the order’s Design to the mapping workbook’s design-wise karigar entries.",
-        "After applying the mapping, the Groups (karigar) sidebar populates automatically and selecting a karigar filters the displayed orders accordingly.",
-        "Auto-assignments are persisted for the selected date using existing backend assignment storage, so reloading the date shows the same karigar grouping without re-uploading the mapping file."
+        "Uploading the karigar mapping workbook produces a deterministic mapping where each design/product code resolves to the correct karigar name based on sheets 1 and 3.",
+        "The parser uses header-based column detection (not positional ‘first two columns’) so that the karigar and design/code columns are not swapped when the sheet layout differs.",
+        "The parsed output includes both: (a) design/product code, (b) karigar name, and (c) generic product name from the \"Name\" column (where present).",
+        "If sheet \"2\" exists it must not override entries from sheets \"1\" and \"3\" when a design/product code appears in multiple sheets (sheet 1 & 3 take priority).",
+        "User-facing parsing errors are shown in English and explain which required columns/sheets are missing."
       ],
       "file_operations": [
         {
           "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-          "operation": "create",
-          "description": "Create a dedicated mapping parser that reads an uploaded mapping workbook (.xlsx/.xls) and combines sheets named \"1\", \"2\", and \"3\" into a normalized Design → Karigar map (including basic cleaning/trim rules)."
+          "operation": "modify",
+          "description": "Refactor mapping workbook parser to (1) prioritize sheets \"1\" and \"3\" over \"2\", (2) detect required columns by header name (design/product code, karigar, and optional \"Name\"), (3) return deterministic normalized entries including generic product name, and (4) raise clear English errors when required sheets/columns are missing."
         },
         {
-          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+          "path": "frontend/src/backend.d.ts",
           "operation": "modify",
-          "description": "Wire the new mapping upload to parseKarigarMapping.ts, store the resulting mapping in local state, and on user apply action derive orderId groups by matching each order's Design. Persist assignments for the selected date by invoking the existing assignment mutation for each karigar group so groups appear in the sidebar and persist across reloads."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add or adjust query invalidation patterns as needed so that after applying mapping-based assignments, the karigar assignments query for the selected date refreshes and the Groups sidebar updates accordingly."
+          "description": "Update frontend type definitions for the standard karigar mapping shape so the UI can consume design/product code → { karigar name, generic product name } without unsafe casts."
         }
       ]
     },
     {
-      "id": "REQ-11",
-      "summary": "Add an explicit 'Apply mapping' workflow with summary (matched per karigar + unmatched designs/orders) and overwrite control; ensure manual assignment continues to work and can override auto-assignments.",
+      "id": "REQ-22",
+      "summary": "Refactor the app entry UI into a landing header with the requested title and a 3-tab navigation for Order List, Daily Order Upload, and Karigar Mapping.",
       "acceptanceCriteria": [
-        "After uploading the mapping workbook, the UI shows a summary: total orders matched/assigned, and a list/count of unmatched designs (or unmatched orders).",
-        "The UI provides an explicit action to apply the mapping to the selected date (or clearly indicates that upload immediately applies it), and prevents accidental silent overwrites.",
-        "Manual assignment UI (existing Assignment panel) still works after mapping is applied and can change assignments for selected orders.",
-        "If an order already has an assignment for the selected date, the UI provides a clear option controlling whether mapping should overwrite existing assignments or only fill missing assignments."
+        "On app open, the top-level page shows the title text exactly: \"Shree I Jewellery Order Management System\".",
+        "The UI provides three clearly labeled tabs in English: \"Order List\", \"Daily Order Upload\", and \"Karigar Mapping\".",
+        "Each tab shows only its relevant UI (no mixed upload/mapping UI on the Order List tab).",
+        "Existing Daily Orders functionality remains accessible via the new tab structure (no loss of capability)."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Replace the current single-page layout with a landing layout that renders the exact requested title and a 3-tab navigation: \"Order List\", \"Daily Order Upload\", and \"Karigar Mapping\"; wire each tab to its dedicated view so UIs do not mix."
+        },
+        {
+          "path": "frontend/src/features/order-list/OrderListTab.tsx",
           "operation": "create",
-          "description": "Add a UI panel component that displays mapping upload status, a computed summary (matched counts per karigar, total matched, total unmatched), an overwrite option (overwrite existing vs fill only), and an explicit \"Apply mapping\" action that triggers the apply flow. Use existing shadcn-ui components already present in the codebase (do not edit files under frontend/src/components/ui). Verify the component's usage instructions before implementing."
+          "description": "Create the \"Order List\" tab view component responsible only for browsing/filtering/exporting orders (factory-wise swipe view + karigar grouping) with English UI labels."
         },
         {
           "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
           "operation": "modify",
-          "description": "Integrate MappingApplyPanel into the Daily Orders sidebar below the mapping upload. Compute and pass summary data (including unmatched designs/orders) based on current orders, current assignments, and the parsed mapping; implement the apply behavior to respect the overwrite control. Ensure the existing AssignmentPanel remains unchanged and continues to allow manual overrides after mapping is applied."
+          "description": "Adjust the daily workflow page to be used specifically under the \"Daily Order Upload\" tab (keeping existing upload/assign/export capabilities) and remove/relocate any UI that now belongs to the \"Karigar Mapping\" tab."
+        },
+        {
+          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+          "operation": "create",
+          "description": "Create the \"Karigar Mapping\" tab view component for uploading and saving the standard mapping workbook independently of daily order uploads; show clear English success/error states."
+        }
+      ]
+    },
+    {
+      "id": "REQ-23",
+      "summary": "Update the Order List tab to show one factory at a time with swipe navigation, group orders karigar-wise, and add a per-karigar download action above each karigar group (while keeping per-factory export).",
+      "acceptanceCriteria": [
+        "In the Order List tab, only one factory’s orders are shown at a time, and the user can change factories via a swipe UI interaction (touch swipe).",
+        "Orders within the selected factory are grouped by karigar and rendered as separate sections/cards.",
+        "Each karigar section has a clearly visible download button above the karigar’s order table that downloads only that karigar’s orders for the currently selected date.",
+        "The per-factory export action remains available (existing behavior), in addition to the per-karigar download.",
+        "All user-facing labels/tooltips for these actions are in English."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/features/order-list/OrderListTab.tsx",
+          "operation": "modify",
+          "description": "Implement factory-at-a-time presentation with touch swipe navigation between factories, reuse existing factory export capability for the selected factory, and render per-karigar grouped sections using the shared grouping component."
+        },
+        {
+          "path": "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
+          "operation": "modify",
+          "description": "Add support for rendering a per-karigar download button above each karigar group (English label) and accept the selected date so the download contains only that karigar’s orders for that date."
+        },
+        {
+          "path": "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts",
+          "operation": "modify",
+          "description": "Adjust the per-karigar export helper to support the new button workflow (keep it downloading only the provided karigar’s orders for the currently selected date; ensure generated document strings/labels remain English)."
+        },
+        {
+          "path": "frontend/src/features/daily-orders/components/ExportPanel.tsx",
+          "operation": "modify",
+          "description": "Ensure the per-factory export action is usable from the Order List tab (in addition to any existing placement), without introducing non-English UI strings."
+        }
+      ]
+    },
+    {
+      "id": "REQ-24",
+      "summary": "Sort orders by design/product code within karigar groups and display generic product name alongside the code using the stored standard mapping.",
+      "acceptanceCriteria": [
+        "Within each karigar group, orders are sorted primarily by design/product code so same-code items appear together.",
+        "If a generic product name exists for a design/product code in the stored standard mapping, the Orders table shows it alongside the design/product code (e.g., \"CODE — Generic Name\" or an equivalent clear presentation).",
+        "If no generic name exists for a code, the UI still shows the code without errors or blank/undefined text."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
+          "operation": "modify",
+          "description": "Within each karigar section, sort orders primarily by design/product code so identical codes are grouped together visually."
+        },
+        {
+          "path": "frontend/src/features/daily-orders/components/OrdersTable.tsx",
+          "operation": "modify",
+          "description": "Update the table to render the design/product code with an optional generic product name from the standard mapping (e.g., a combined display string), while safely handling missing names."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add React Query hooks to fetch the stored standard karigar mapping and provide it to Order List and daily workflows for generic-name display and mapping-apply behavior."
+        },
+        {
+          "path": "frontend/src/features/order-list/OrderListTab.tsx",
+          "operation": "modify",
+          "description": "Wire fetched standard mapping into the Order List rendering so design/product code cells include generic product name when available."
+        }
+      ]
+    },
+    {
+      "id": "REQ-25",
+      "summary": "Implement a dedicated Karigar Mapping tab that uploads and saves the standard mapping workbook, shows English confirmation/errors, and makes the updated mapping immediately available to Order List and mapping-apply workflows.",
+      "acceptanceCriteria": [
+        "The Karigar Mapping tab includes an upload control that accepts .xlsx/.xls mapping workbooks.",
+        "Uploading a mapping workbook saves it to the backend standard mapping store and shows a clear English success or error message.",
+        "The mapping upload UI does not require that any orders are already uploaded/loaded (no disabled state based on currentOrders length).",
+        "After a successful mapping upload, the Order List tab uses the updated mapping for generic names and for matching designs to karigars (after applying assignments as per existing workflow)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+          "operation": "modify",
+          "description": "Implement mapping upload UI accepting .xlsx/.xls, call the backend capability to save a full mapping replacement, and show English success/error states; ensure the control is never disabled due to lack of current orders."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add mutations/queries for saving the standard mapping workbook and fetching the currently saved mapping; invalidate relevant cached queries after a successful save so other tabs update immediately."
+        },
+        {
+          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+          "operation": "modify",
+          "description": "Refactor mapping-apply workflow to use the fetched stored standard mapping (instead of uploading mapping inside the daily page), and keep apply behavior/English errors consistent with existing assignment workflow."
+        },
+        {
+          "path": "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
+          "operation": "modify",
+          "description": "Adjust mapping summary inputs to derive from the stored standard mapping (including unmatched design reporting) and keep all user-facing copy in English."
         }
       ]
     }

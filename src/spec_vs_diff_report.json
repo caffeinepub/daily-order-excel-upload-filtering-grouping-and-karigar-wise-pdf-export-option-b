@@ -1,40 +1,74 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-05T20:08:05.022Z",
-  "summary": "Diff implements two separate uploads on Daily Orders (orders + mapping), adds Excel (.xlsx/.xls) parsing for OrderList with required-column validation, adds multi-sheet (\"1\",\"2\",\"3\") mapping parsing, and introduces an Apply Mapping UI with overwrite toggle and matched/unmatched summary. Backend schema was changed (migration added) to include an order.design field and a new designToKarigar map, but persistence details for auto-assignments are not fully verifiable from the truncated diff.",
+  "generatedAt": "2026-02-05T20:57:08.002Z",
+  "summary": "The diff implements the 3-tab layout with the exact landing title, adds new Order List and Karigar Mapping tabs, introduces swipe-based factory navigation, karigar-wise grouping with per-karigar download buttons, and adds backend storage scaffolding for a standard karigar mapping workbook (including a migration). However, key parts of the mapping requirements are not fully met: the mapping parser includes a positional fallback instead of strict header-based detection with clear English errors, and the generic product name (\"Name\" column) is parsed but not persisted to or returned from the backend, so it cannot be displayed in the Order List as required.",
   "missing_requirements": [
     {
-      "id": "REQ-10",
-      "requirement": "Auto-assignments are persisted for the selected date using existing backend assignment storage, so reloading the date shows the same karigar grouping without re-uploading the mapping file.",
-      "reason": "Frontend shows mapping parsing and an apply workflow UI, but the diff summary is truncated before showing that applying the mapping actually calls the existing backend assignment storage (e.g., useAssignKarigar/assignKarigar) for all matched orders and persists them for the selected date. This may be implemented, but it is not provable from the provided truncated evidence.",
+      "id": "REQ-20",
+      "requirement": "Parser must use header-based column detection (not positional) and show English errors indicating missing required columns/sheets.",
+      "reason": "The new parseKarigarMapping implementation explicitly falls back to positional parsing (first two columns) when headers are not found, rather than failing with an explanatory English error. The diff snippet also does not show user-facing errors specifically calling out missing required columns/sheets.",
       "evidence": [
-        "frontend/src/features/daily-orders/DailyOrdersPage.tsx (truncated)",
-        "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx (truncated)"
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
+      ]
+    },
+    {
+      "id": "REQ-21",
+      "requirement": "Persist standard mapping entries as design/product code → {karigar name, generic product name}, and expose update/fetch APIs for that structure.",
+      "reason": "Backend state is a workbook map of Text→Map<Text,Text> (design→karigar only). No evidence of generic product name being stored. Frontend upload converts parsed entries to Array<[design, karigar]> only, dropping generic product name.",
+      "evidence": [
+        "backend/main.mo",
+        "backend/migration.mo",
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    },
+    {
+      "id": "REQ-24",
+      "requirement": "Display the generic product name alongside design/product code in the Orders table when available from the stored standard mapping.",
+      "reason": "OrdersTable supports displaying a genericName, but mappingLookup is built only from [design, karigar] pairs and never sets genericName. Since the backend payload also contains only [design, karigar], the UI cannot display generic names as required.",
+      "evidence": [
+        "frontend/src/features/order-list/OrderListTab.tsx",
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+        "frontend/src/features/daily-orders/components/OrdersTable.tsx",
+        "frontend/src/hooks/useQueries.ts",
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-25",
+      "requirement": "Karigar Mapping upload must save the mapping workbook (including generic product name) to the backend and make it immediately available to Order List and mapping-apply workflows.",
+      "reason": "KarigarMappingTab parses entries that include genericName, but the payload sent to the backend only includes [design, karigar] and drops genericName, so the updated mapping cannot provide generic names to Order List or mapping-apply flows.",
+      "evidence": [
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
+        "frontend/src/hooks/useQueries.ts"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Backend introduces a persisted global designToKarigar mapping state and migration for it.",
-      "reason": "REQ-10/REQ-11 require using the mapping workbook to assign/group orders per selected date and persist assignments using existing assignment storage; they do not request persisting the mapping itself globally in backend state. The diff adds `designToKarigar` to the actor state and migration without clear linkage to a requested requirement.",
+      "description": "Added branded footer content (© 2026, heart icon, and external caffeine.ai link).",
+      "reason": "BuildRequest does not ask for any footer branding or external links; only the 3-tab layout and title are specified.",
       "evidence": [
-        "backend/main.mo",
-        "backend/migration.mo"
+        "frontend/src/App.tsx"
       ]
     }
   ],
-  "confidence": 0.63,
+  "confidence": 0.74,
   "changed_files": [
     "backend/main.mo",
     "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/index.html",
+    "frontend/src/App.tsx",
     "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+    "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
     "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
-    "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
+    "frontend/src/features/daily-orders/components/OrdersTable.tsx",
     "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-    "frontend/src/types/xlsx.d.ts",
+    "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+    "frontend/src/features/order-list/OrderListTab.tsx",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json"
   ]
 }

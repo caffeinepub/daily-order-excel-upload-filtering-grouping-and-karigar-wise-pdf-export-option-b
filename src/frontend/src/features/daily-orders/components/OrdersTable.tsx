@@ -9,9 +9,16 @@ interface OrdersTableProps {
   assignments: KarigarAssignment[];
   selectedOrderIds: Set<string>;
   onToggleSelection: (orderId: string) => void;
+  mappingLookup?: Map<string, { karigar: string; genericName?: string }>;
 }
 
-export default function OrdersTable({ orders, assignments, selectedOrderIds, onToggleSelection }: OrdersTableProps) {
+export default function OrdersTable({ 
+  orders, 
+  assignments, 
+  selectedOrderIds, 
+  onToggleSelection,
+  mappingLookup 
+}: OrdersTableProps) {
   const assignmentMap = new Map(assignments.map((a) => [a.orderId, a]));
 
   if (orders.length === 0) {
@@ -29,7 +36,7 @@ export default function OrdersTable({ orders, assignments, selectedOrderIds, onT
           <TableRow>
             <TableHead className="w-12"></TableHead>
             <TableHead>Order No</TableHead>
-            <TableHead>Design</TableHead>
+            <TableHead>Design / Product</TableHead>
             <TableHead>Weight</TableHead>
             <TableHead>Size</TableHead>
             <TableHead>Quantity</TableHead>
@@ -40,6 +47,11 @@ export default function OrdersTable({ orders, assignments, selectedOrderIds, onT
         <TableBody>
           {orders.map((order) => {
             const assignment = assignmentMap.get(order.orderNo);
+            const mapping = mappingLookup?.get(order.design);
+            const displayDesign = mapping?.genericName 
+              ? `${order.design} — ${mapping.genericName}`
+              : order.design;
+            
             return (
               <TableRow key={order.orderNo}>
                 <TableCell>
@@ -49,7 +61,11 @@ export default function OrdersTable({ orders, assignments, selectedOrderIds, onT
                   />
                 </TableCell>
                 <TableCell className="font-medium">{order.orderNo}</TableCell>
-                <TableCell>{order.design}</TableCell>
+                <TableCell className="max-w-xs">
+                  <div className="truncate" title={displayDesign}>
+                    {displayDesign}
+                  </div>
+                </TableCell>
                 <TableCell>{order.weight}</TableCell>
                 <TableCell>{order.size}</TableCell>
                 <TableCell>{order.quantity}</TableCell>

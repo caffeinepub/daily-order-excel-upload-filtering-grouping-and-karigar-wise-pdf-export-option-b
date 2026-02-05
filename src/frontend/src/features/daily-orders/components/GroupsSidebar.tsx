@@ -1,19 +1,24 @@
-import { Users } from 'lucide-react';
+import { Factory } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ParsedOrder } from '../excel/parseDailyOrders';
 
 interface GroupsSidebarProps {
-  ordersByKarigar: Map<string, ParsedOrder[]>;
-  selectedKarigar: string | null;
-  onSelectKarigar: (karigar: string | null) => void;
+  ordersByFactory: Map<string, ParsedOrder[]>;
+  selectedFactory: string | null;
+  onSelectFactory: (factory: string | null) => void;
 }
 
-export default function GroupsSidebar({ ordersByKarigar, selectedKarigar, onSelectKarigar }: GroupsSidebarProps) {
-  const karigars = Array.from(ordersByKarigar.keys()).sort();
+export default function GroupsSidebar({ ordersByFactory, selectedFactory, onSelectFactory }: GroupsSidebarProps) {
+  const factories = Array.from(ordersByFactory.keys()).sort((a, b) => {
+    // "No Factory" always last
+    if (a === 'No Factory') return 1;
+    if (b === 'No Factory') return -1;
+    return a.localeCompare(b);
+  });
 
-  if (karigars.length === 0) {
+  if (factories.length === 0) {
     return null;
   }
 
@@ -21,30 +26,20 @@ export default function GroupsSidebar({ ordersByKarigar, selectedKarigar, onSele
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Users className="h-4 w-4" />
-          Karigars
+          <Factory className="h-4 w-4" />
+          Factories
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <Button
-          variant={selectedKarigar === null ? 'default' : 'ghost'}
-          className="w-full justify-between"
-          onClick={() => onSelectKarigar(null)}
-        >
-          <span>All Orders</span>
-          <Badge variant="secondary">
-            {Array.from(ordersByKarigar.values()).reduce((sum, orders) => sum + orders.length, 0)}
-          </Badge>
-        </Button>
-        {karigars.map((karigar) => (
+        {factories.map((factory) => (
           <Button
-            key={karigar}
-            variant={selectedKarigar === karigar ? 'default' : 'ghost'}
+            key={factory}
+            variant={selectedFactory === factory ? 'default' : 'ghost'}
             className="w-full justify-between"
-            onClick={() => onSelectKarigar(karigar)}
+            onClick={() => onSelectFactory(factory)}
           >
-            <span className="truncate">{karigar}</span>
-            <Badge variant="secondary">{ordersByKarigar.get(karigar)?.length || 0}</Badge>
+            <span className="truncate">{factory}</span>
+            <Badge variant="secondary">{ordersByFactory.get(factory)?.length || 0}</Badge>
           </Button>
         ))}
       </CardContent>
