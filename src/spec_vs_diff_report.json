@@ -1,129 +1,40 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-05T19:51:49.579Z",
-  "summary": "Core Daily Orders page, CSV-based parsing, filtering/sorting, karigar assignment UI, grouping sidebar, and backend persistence endpoints were added. However, several requirements are only partially met: true Excel (.xls/.xlsx) upload is not supported (CSV-only), export is HTML not PDF, backend order storage omits required fields, and editing/removing assignments and factory-wise grouping are not evidenced. Also, additional authentication/profile/access-control features were implemented though not requested.",
+  "generatedAt": "2026-02-05T20:08:05.022Z",
+  "summary": "Diff implements two separate uploads on Daily Orders (orders + mapping), adds Excel (.xlsx/.xls) parsing for OrderList with required-column validation, adds multi-sheet (\"1\",\"2\",\"3\") mapping parsing, and introduces an Apply Mapping UI with overwrite toggle and matched/unmatched summary. Backend schema was changed (migration added) to include an order.design field and a new designToKarigar map, but persistence details for auto-assignments are not fully verifiable from the truncated diff.",
   "missing_requirements": [
     {
-      "id": "REQ-1",
-      "requirement": "User can choose an Excel file to upload (common .xls/.xlsx formats).",
-      "reason": "The parser explicitly rejects .xlsx/.xls and instructs the user to export as CSV; upload flow therefore does not support common Excel formats as requested.",
+      "id": "REQ-10",
+      "requirement": "Auto-assignments are persisted for the selected date using existing backend assignment storage, so reloading the date shows the same karigar grouping without re-uploading the mapping file.",
+      "reason": "Frontend shows mapping parsing and an apply workflow UI, but the diff summary is truncated before showing that applying the mapping actually calls the existing backend assignment storage (e.g., useAssignKarigar/assignKarigar) for all matched orders and persists them for the selected date. This may be implemented, but it is not provable from the provided truncated evidence.",
       "evidence": [
-        "frontend/src/features/daily-orders/excel/parseDailyOrders.ts"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "requirement": "Generate downloadable PDF exports for each karigar group for the selected date.",
-      "reason": "Export implementation generates and downloads an HTML file (content-type text/html) and the UI button is labeled 'Export HTML', not a PDF.",
-      "evidence": [
-        "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts",
-        "frontend/src/features/daily-orders/components/ExportPanel.tsx"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "requirement": "If a karigar group has zero orders, export is disabled or produces a PDF with a clear 'No orders' message (English).",
-      "reason": "Export is disabled/returns early for zero orders, but there is no evidence of producing a PDF with a 'No orders' message; additionally, the export is HTML not PDF.",
-      "evidence": [
-        "frontend/src/features/daily-orders/components/ExportPanel.tsx"
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "requirement": "Store daily uploaded order data in the backend so reopening past dates shows the same 6 extracted fields (Order No, Design, Weight, Size, Quantity, Remarks) without re-upload.",
-      "reason": "Backend Order type only contains orderId and product; frontend mapping from savedOrders sets weight/size/quantity/remarks to empty strings, so past-date reload cannot restore the extracted 6 fields.",
-      "evidence": [
-        "backend/main.mo",
-        "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "requirement": "Provide an in-app way to assign each order (or each Design) to a karigar and optional factory for the current day, and reuse those assignments for consistent grouping; user can edit/remove assignments and grouped views update accordingly.",
-      "reason": "There is an assign flow (assignKarigar) but no evidence of any UI or backend method to edit/remove an existing assignment (e.g., unassign, change karigar for a single order, delete assignment).",
-      "evidence": [
-        "backend/main.mo",
-        "frontend/src/features/daily-orders/components/AssignmentPanel.tsx"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "requirement": "Support grouping orders karigar-wise (and factory-wise if needed) to produce separate per-group views and exports.",
-      "reason": "Grouping and sidebar are karigar-only; although factory is captured in AssignmentPanel/backend assignment type, there is no evidence of a factory-wise grouped view or factory-based grouping toggle.",
-      "evidence": [
-        "frontend/src/features/daily-orders/components/GroupsSidebar.tsx",
-        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-        "frontend/src/features/daily-orders/components/AssignmentPanel.tsx",
-        "backend/main.mo"
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx (truncated)",
+        "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx (truncated)"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Internet Identity login gating, login/logout UI, and auth flow infrastructure.",
-      "reason": "BuildRequest explicitly says Internet Identity is supported but 'not required unless explicitly requested'; requirements focus on upload/parse/filter/group/export, not adding authentication.",
+      "description": "Backend introduces a persisted global designToKarigar mapping state and migration for it.",
+      "reason": "REQ-10/REQ-11 require using the mapping workbook to assign/group orders per selected date and persist assignments using existing assignment storage; they do not request persisting the mapping itself globally in backend state. The diff adds `designToKarigar` to the actor state and migration without clear linkage to a requested requirement.",
       "evidence": [
-        "frontend/src/App.tsx",
-        "frontend/src/components/LoginButton.tsx",
-        "frontend/src/hooks/useInternetIdentity.ts",
-        "frontend/src/main.tsx"
-      ]
-    },
-    {
-      "description": "User profile setup modal and profile persistence APIs (get/save user profile).",
-      "reason": "User profile collection is not part of any listed REQ-1..REQ-7 acceptance criteria.",
-      "evidence": [
-        "frontend/src/components/ProfileSetupModal.tsx",
-        "frontend/src/hooks/useQueries.ts",
-        "backend/main.mo"
-      ]
-    },
-    {
-      "description": "Admin-token-based access control initialization and admin-only restrictions for uploading orders and assigning karigar.",
-      "reason": "BuildRequest did not specify roles/admin gating; restricting upload/assignment to admin may block intended user workflow and is not requested.",
-      "evidence": [
-        "frontend/src/hooks/useActor.ts",
-        "backend/main.mo"
-      ]
-    },
-    {
-      "description": "HTML export labeled/implemented as 'Export HTML' (not PDF).",
-      "reason": "Not requested; requested output format is PDF.",
-      "evidence": [
-        "frontend/src/features/daily-orders/components/ExportPanel.tsx",
-        "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts"
+        "backend/main.mo",
+        "backend/migration.mo"
       ]
     }
   ],
-  "confidence": 0.74,
+  "confidence": 0.63,
   "changed_files": [
-    "all_files_summary.json",
     "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/index.css",
     "frontend/index.html",
-    "frontend/src/App.tsx",
-    "frontend/src/components/LoginButton.tsx",
-    "frontend/src/components/ProfileSetupModal.tsx",
     "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-    "frontend/src/features/daily-orders/components/AssignmentPanel.tsx",
-    "frontend/src/features/daily-orders/components/ExportPanel.tsx",
-    "frontend/src/features/daily-orders/components/GroupsSidebar.tsx",
-    "frontend/src/features/daily-orders/components/OrdersTable.tsx",
-    "frontend/src/features/daily-orders/components/OrdersToolbar.tsx",
+    "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
     "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-    "frontend/src/features/daily-orders/hooks/useOrderFilters.ts",
-    "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts",
-    "frontend/src/hooks/useActor.ts",
-    "frontend/src/hooks/useInternetIdentity.ts",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/index.css",
-    "frontend/src/main.tsx",
-    "frontend/src/types/jspdf.d.ts",
+    "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
     "frontend/src/types/xlsx.d.ts",
-    "frontend/src/utils/urlParams.ts",
-    "frontend/tailwind.config.js",
     "project_state.json"
   ]
 }

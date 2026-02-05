@@ -1,203 +1,103 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Daily Orders: Excel upload, filter/group, and karigar-wise PDF export (Option B)",
+  "title": "Two-file upload and Excel parsing for daily orders + karigar mapping auto-grouping",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Add a Daily Orders screen with a date picker (default today) and an Excel (.xls/.xlsx) file upload with clear success/failure UI.",
+      "id": "REQ-8",
+      "summary": "Update Daily Orders page to support two separate uploads per selected date: OrderList (cumulative orders stored/displayed as that date) and karigar mapping workbook (used only for grouping/assignments).",
       "acceptanceCriteria": [
-        "A page/section exists for 'Daily Orders' with a date picker defaulting to the current date.",
-        "User can choose an Excel file to upload (common .xls/.xlsx formats).",
-        "UI clearly shows upload success/failure states and the selected date/file name."
+        "The page provides two clearly labeled upload inputs/areas: one for the OrderList file and one for the karigar mapping file.",
+        "Uploading the OrderList file replaces the current in-memory orders and stores them under the currently selected date (default today), regardless of whether the file contains historical/cumulative rows.",
+        "Uploading the mapping file does not overwrite the stored orders; it only affects karigar grouping/assignments for the selected date.",
+        "All user-facing UI text for the new controls is in English."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/App.tsx",
-          "operation": "create",
-          "description": "Create the main App shell and wire a \"Daily Orders\" screen into the app UI (navigation + page title). Use shadcn-ui components for consistent layout/styling (e.g., Button, Card, Input). Verify the component's usage instructions before implementing."
-        },
-        {
           "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "operation": "create",
-          "description": "Implement the Daily Orders UI: date picker defaulting to today, Excel file input (accept .xls/.xlsx), and upload state UI (idle/selecting/uploading/success/failure) showing selected date and file name. Use shadcn-ui form primitives for inputs and alerts. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/main.tsx",
           "operation": "modify",
-          "description": "Wire the newly created frontend/src/App.tsx as the app root and ensure global styles are imported correctly (fix the index.css import to reference the existing stylesheet location)."
+          "description": "Replace the single upload control with two clearly labeled upload controls: (1) \"Upload OrderList\" (accept .csv/.xlsx/.xls) that parses and stores orders for the selected date, and (2) \"Upload Karigar Mapping\" (accept .xlsx/.xls, optionally .csv) that loads mapping into local page state for later application. Ensure OrderList upload replaces in-memory orders and persists them under the currently selected date without being affected by mapping upload. Remove/replace any CSV-only helper text so all new user-facing text is English."
         },
         {
-          "path": "frontend/package.json",
-          "operation": "create",
-          "description": "Add/define frontend dependencies needed for Excel parsing and PDF generation (e.g., SheetJS/xlsx and jsPDF) and ensure scripts/build config align with the frontend folder build. (Frontend-only dependency change; no backend changes.)"
+          "path": "frontend/src/features/daily-orders/components/GroupsSidebar.tsx",
+          "operation": "modify",
+          "description": "Adjust sidebar labeling/count behavior if needed to reflect karigar groups created from persisted assignments after mapping is applied (and keep 'All Orders' behavior consistent when there are orders but no groups yet)."
         }
       ]
     },
     {
-      "id": "REQ-2",
-      "summary": "Parse the uploaded Excel and extract only: Order No, Design, Weight, Size, Quantity, Remarks; validate required columns and render a 6-column table.",
+      "id": "REQ-9",
+      "summary": "Support parsing OrderList uploads from .xlsx/.xls as well as .csv, extracting Order No, Design, Weight, Size, Quantity, Remarks with clear missing-column errors.",
       "acceptanceCriteria": [
-        "After upload, a table renders with only the 6 required fields (no extra columns displayed).",
-        "If any of the required columns are missing/unreadable, the app shows an English validation error explaining what is missing.",
-        "Empty cells are handled gracefully (rendered as blank, not as 'undefined' or crashing)."
+        "The OrderList upload accepts .xlsx/.xls and .csv files.",
+        "After upload, the app displays a table of parsed orders using the extracted fields (Order No, Design, Weight, Size, Quantity, Remarks).",
+        "If required columns are missing, the app shows a clear error describing which columns are missing.",
+        "The upload no longer blocks users with a 'Please export to CSV' error when they provide a valid .xlsx/.xls file."
       ],
       "file_operations": [
         {
           "path": "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "operation": "create",
-          "description": "Implement Excel parsing logic for .xls/.xlsx to produce normalized daily order rows with exactly the 6 required fields and robust validation for missing/unreadable columns (English errors) plus safe handling for empty cells."
+          "operation": "modify",
+          "description": "Extend the existing parser to handle .xlsx/.xls using the existing/available XLSX parsing capability (SheetJS-style) while keeping .csv support. Implement robust header detection and emit a clear error listing missing required columns (Order No, Design, Weight, Size, Quantity, Remarks). Remove the current hard-blocking error message that instructs users to export to CSV for valid .xlsx/.xls files."
         },
         {
-          "path": "frontend/src/features/daily-orders/components/OrdersTable.tsx",
-          "operation": "create",
-          "description": "Render the extracted orders as a table that displays only the 6 required fields. Use shadcn-ui Table-related components (or consistent table styling patterns) and ensure blank cells render as empty strings. Verify the component's usage instructions before implementing."
+          "path": "frontend/src/types/xlsx.d.ts",
+          "operation": "modify",
+          "description": "Add minimal TypeScript type declarations (or module declaration) required for the XLSX parsing import used by the OrderList and mapping parsers, so the project compiles cleanly."
         },
         {
           "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
           "operation": "modify",
-          "description": "Integrate parseDailyOrders.ts into the upload flow, show validation errors in English, and render OrdersTable once parsing succeeds. Use shadcn-ui Alert/toast patterns for failure states. Verify the component's usage instructions before implementing."
+          "description": "Update the OrderList upload input accept list to include .csv,.xlsx,.xls, and ensure parsing errors from the enhanced parser are displayed in the existing error alert."
         }
       ]
     },
     {
-      "id": "REQ-3",
-      "summary": "Add client-side searching/filtering and Design sorting for the extracted daily orders without requiring re-upload.",
+      "id": "REQ-10",
+      "summary": "Parse karigar mapping workbook with sheets \"1\", \"2\", \"3\" into a combined Design → Karigar mapping and use it to auto-assign/group orders for the selected date based on Design.",
       "acceptanceCriteria": [
-        "User can sort the table by Design (ascending/descending).",
-        "User can filter/search orders using a text input (matching at least Order No, Design, Remarks).",
-        "Filters/sorts update the displayed table immediately without re-uploading the file."
+        "The mapping upload accepts .xlsx/.xls (and optionally .csv if feasible) and reads sheets named \"1\", \"2\", and \"3\" when present.",
+        "The app derives karigar assignments for orders by matching the order’s Design to the mapping workbook’s design-wise karigar entries.",
+        "After applying the mapping, the Groups (karigar) sidebar populates automatically and selecting a karigar filters the displayed orders accordingly.",
+        "Auto-assignments are persisted for the selected date using existing backend assignment storage, so reloading the date shows the same karigar grouping without re-uploading the mapping file."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/features/daily-orders/hooks/useOrderFilters.ts",
+          "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "operation": "create",
-          "description": "Create a hook to manage search text, sort state (Design asc/desc), and derived filtered/sorted orders computed from the extracted rows."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/components/OrdersToolbar.tsx",
-          "operation": "create",
-          "description": "Add UI controls for search and Design sort toggle. Use shadcn-ui Input/Button components for a consistent toolbar. Verify the component's usage instructions before implementing."
+          "description": "Create a dedicated mapping parser that reads an uploaded mapping workbook (.xlsx/.xls) and combines sheets named \"1\", \"2\", and \"3\" into a normalized Design → Karigar map (including basic cleaning/trim rules)."
         },
         {
           "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
           "operation": "modify",
-          "description": "Wire OrdersToolbar + useOrderFilters to update the displayed OrdersTable immediately (no re-upload), ensuring search matches at least Order No, Design, and Remarks."
+          "description": "Wire the new mapping upload to parseKarigarMapping.ts, store the resulting mapping in local state, and on user apply action derive orderId groups by matching each order's Design. Persist assignments for the selected date by invoking the existing assignment mutation for each karigar group so groups appear in the sidebar and persist across reloads."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add or adjust query invalidation patterns as needed so that after applying mapping-based assignments, the karigar assignments query for the selected date refreshes and the Groups sidebar updates accordingly."
         }
       ]
     },
     {
-      "id": "REQ-4",
-      "summary": "Provide in-app assignment of Karigar (required) and optional Factory to orders/designs per selected date, show grouped views, and persist/load assignments via backend calls.",
+      "id": "REQ-11",
+      "summary": "Add an explicit 'Apply mapping' workflow with summary (matched per karigar + unmatched designs/orders) and overwrite control; ensure manual assignment continues to work and can override auto-assignments.",
       "acceptanceCriteria": [
-        "UI allows assigning a 'Karigar' (required for grouping) and 'Factory' (optional) to orders or Designs for the selected date.",
-        "User can view a grouped list (e.g., list of karigars/factories) and click into a group to see only its orders.",
-        "Assignments persist (saved in backend) so a page refresh does not lose grouping work for that date.",
-        "User can edit/remove assignments and the grouped views update accordingly."
+        "After uploading the mapping workbook, the UI shows a summary: total orders matched/assigned, and a list/count of unmatched designs (or unmatched orders).",
+        "The UI provides an explicit action to apply the mapping to the selected date (or clearly indicates that upload immediately applies it), and prevents accidental silent overwrites.",
+        "Manual assignment UI (existing Assignment panel) still works after mapping is applied and can change assignments for selected orders.",
+        "If an order already has an assignment for the selected date, the UI provides a clear option controlling whether mapping should overwrite existing assignments or only fill missing assignments."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/features/daily-orders/hooks/useDailyOrdersData.ts",
+          "path": "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx",
           "operation": "create",
-          "description": "Create a data hook that uses useActor + react-query to load saved daily orders and karigar assignments for the selected date, and to persist updates (store daily orders after parsing; assign karigar/factory for selected orders). Handle authorization failures gracefully in English."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/components/AssignmentPanel.tsx",
-          "operation": "create",
-          "description": "Build UI to assign Karigar (required) and optional Factory to either selected orders or all orders of a selected Design for the current date, plus edit/remove flows. Use shadcn-ui Dialog/Select/Input/Button components for forms and confirmation UI. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/components/GroupsSidebar.tsx",
-          "operation": "create",
-          "description": "Implement grouped navigation: list karigar groups (and optional factory sub-grouping if present), show counts, and allow selecting a group to filter the orders view. Use shadcn-ui components for list styling. Verify the component's usage instructions before implementing."
+          "description": "Add a UI panel component that displays mapping upload status, a computed summary (matched counts per karigar, total matched, total unmatched), an overwrite option (overwrite existing vs fill only), and an explicit \"Apply mapping\" action that triggers the apply flow. Use existing shadcn-ui components already present in the codebase (do not edit files under frontend/src/components/ui). Verify the component's usage instructions before implementing."
         },
         {
           "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
           "operation": "modify",
-          "description": "Wire persisted loading for the selected date: if backend has saved orders, display them without requiring Excel upload; otherwise allow upload + then save. Integrate AssignmentPanel and GroupsSidebar so grouping updates immediately after assignment edits and persists across refresh."
-        },
-        {
-          "path": "frontend/src/components/AuthGate.tsx",
-          "operation": "create",
-          "description": "Add an authentication gate requiring Internet Identity login before showing any application data (per authorization component guidance). Show an English Access Denied / login prompt screen when unauthenticated. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/LoginButton.tsx",
-          "operation": "create",
-          "description": "Add a Login/Logout button using the authorization component’s recommended Internet Identity flow and ensure cached app data is cleared on logout (react-query cache clear). Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/ProfileSetupModal.tsx",
-          "operation": "create",
-          "description": "Prompt first-time logged-in users to set a human-readable name (UserProfile) using getCallerUserProfile/saveCallerUserProfile; prevent modal flash by following the authorization component’s loading guidance. Use shadcn-ui Dialog/Input/Button for UI. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Wrap the Daily Orders screen with AuthGate, include LoginButton in the header, and wire ProfileSetupModal so users must be logged in (and can set their name) before accessing daily orders/grouping data. Verify the component's usage instructions before implementing."
-        }
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "summary": "Generate downloadable per-karigar PDF exports for the selected date with header (date + group) and a table of the 6 extracted fields; handle empty groups.",
-      "acceptanceCriteria": [
-        "For a selected date, user can export a PDF for a specific karigar group.",
-        "Generated PDF includes a title/header with the selected date and the karigar name, and a tabular list of orders with the 6 extracted fields.",
-        "PDF generation works fully from the uploaded file + in-app assignments without requiring external services.",
-        "If a karigar group has zero orders, export is disabled or produces a PDF with a clear 'No orders' message (English)."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts",
-          "operation": "create",
-          "description": "Implement client-side PDF generation for a single karigar group using a browser PDF library (e.g., jsPDF). Include an English header with selected date and karigar name, and a table containing exactly the 6 extracted fields; support a clear 'No orders' message if empty."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/components/ExportPanel.tsx",
-          "operation": "create",
-          "description": "Add UI to export the currently selected karigar group (or choose a karigar) as a downloadable PDF; disable export or show an English empty-state message when the group has zero orders. Use shadcn-ui Button/Select components. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "operation": "modify",
-          "description": "Wire ExportPanel to the grouped selection state and the derived orders for that karigar/date, ensuring export uses only uploaded/saved orders + in-app assignments (no external services)."
-        }
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "summary": "Apply a coherent, distinct visual theme and consistent design across upload, table, grouping, and export UI with English-only strings.",
-      "acceptanceCriteria": [
-        "UI uses a consistent design system across all pages/sections (spacing, headings, button styles, table styling).",
-        "Theme avoids default-looking unstyled layouts and is applied consistently to empty/loading/error states.",
-        "All user-facing text is in English."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/index.css",
-          "operation": "modify",
-          "description": "Adjust/extend global theme tokens (colors/typography/spacing defaults) and baseline element styles to create a distinct, consistent app theme while remaining compatible with Tailwind + shadcn-ui styling."
-        },
-        {
-          "path": "frontend/tailwind.config.js",
-          "operation": "modify",
-          "description": "Refine Tailwind theme extensions (brand colors, typography defaults, shadows/radii) to support a consistent visual system across the Daily Orders flow."
-        },
-        {
-          "path": "frontend/src/components/layout/AppFrame.tsx",
-          "operation": "create",
-          "description": "Create a reusable layout wrapper (header + content container) used by the Daily Orders page to ensure consistent spacing, headings, and empty/loading/error state styling. Use shadcn-ui components where appropriate. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "operation": "modify",
-          "description": "Ensure all UI states (no data yet, loading saved date, parsing errors, authorization errors) are styled consistently and all user-facing strings are in English, aligning with the app theme."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Adopt AppFrame for overall layout and ensure navigation/header styling is consistent with the theme across the app."
+          "description": "Integrate MappingApplyPanel into the Daily Orders sidebar below the mapping upload. Compute and pass summary data (including unmatched designs/orders) based on current orders, current assignments, and the parsed mapping; implement the apply behavior to respect the overwrite control. Ensure the existing AssignmentPanel remains unchanged and continues to allow manual overrides after mapping is applied."
         }
       ]
     }

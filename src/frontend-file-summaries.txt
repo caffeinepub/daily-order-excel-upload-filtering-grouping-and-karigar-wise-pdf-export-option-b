@@ -3,8 +3,8 @@
   "frontend/src/components/LoginButton.tsx": "Login/logout button component using Internet Identity with loading states and query cache clearing on logout.",
   "frontend/src/components/ProfileSetupModal.tsx": "Modal dialog that prompts first-time users to enter their name for profile setup.",
   "frontend/src/hooks/useQueries.ts": "React Query hooks for all backend operations including user profiles, daily orders, and karigar assignments with proper cache invalidation.",
-  "frontend/src/features/daily-orders/DailyOrdersPage.tsx": "Main page for daily orders management with date selection, CSV upload, filtering, karigar grouping, and HTML export functionality with updated file type messaging.",
-  "frontend/src/features/daily-orders/excel/parseDailyOrders.ts": "CSV file parser that extracts the 6 required columns (Order No, Design, Weight, Size, Quantity, Remarks) with validation and error handling, using native browser APIs without external dependencies.",
+  "frontend/src/features/daily-orders/DailyOrdersPage.tsx": "Main page for daily orders management with two separate upload controls (OrderList and Karigar Mapping), date selection, automatic karigar assignment from mapping, filtering, manual assignment override, and HTML export functionality.",
+  "frontend/src/features/daily-orders/excel/parseDailyOrders.ts": "Parser that extracts orders from .csv, .xlsx, or .xls files with the 6 required columns (Order No, Design, Weight, Size, Quantity, Remarks), using native CSV parsing for .csv and window.XLSX global for Excel formats with validation and error handling.",
   "frontend/src/features/daily-orders/components/OrdersTable.tsx": "Table component displaying orders with the 6 extracted fields, selection checkboxes, and karigar assignment badges.",
   "frontend/src/features/daily-orders/components/OrdersToolbar.tsx": "Toolbar with search input and design sort toggle for filtering and organizing orders.",
   "frontend/src/features/daily-orders/components/AssignmentPanel.tsx": "Dialog for assigning selected orders to a karigar with optional factory field.",
@@ -15,6 +15,9 @@
   "frontend/src/index.css": "Global styles with OKLCH color system using a purple-based primary color palette for light and dark modes.",
   "frontend/tailwind.config.js": "Tailwind configuration with extended color tokens, Inter font family, and custom shadows for a polished design system.",
   "frontend/package.json": "Package configuration with added type declarations for jspdf-autotable and dependencies for Excel parsing (xlsx) and PDF generation (jspdf, jspdf-autotable).",
-  "frontend/src/types/xlsx.d.ts": "TypeScript type declarations for the xlsx library providing WorkBook, WorkSheet interfaces and utility functions.",
-  "frontend/src/types/jspdf.d.ts": "TypeScript type declarations for jspdf and jspdf-autotable libraries with class definitions and method signatures."
+  "frontend/src/types/xlsx.d.ts": "TypeScript type declarations for the XLSX library loaded via CDN as a global window object, providing WorkBook, Sheets, and utility functions for parsing Excel files.",
+  "frontend/src/types/jspdf.d.ts": "TypeScript type declarations for jspdf and jspdf-autotable libraries with class definitions and method signatures.",
+  "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts": "Parser that reads karigar mapping workbooks with sheets \"1\", \"2\", \"3\" using window.XLSX global and extracts design-to-karigar mappings from the first two columns of each sheet.",
+  "frontend/src/features/daily-orders/components/MappingApplyPanel.tsx": "Panel component displaying mapping summary statistics (matched/unmatched orders by karigar), unmatched designs list, overwrite toggle, and apply button for karigar assignments.",
+  "frontend/index.html": "HTML entry point with SheetJS XLSX library loaded via CDN script tag for Excel file parsing functionality."
 }

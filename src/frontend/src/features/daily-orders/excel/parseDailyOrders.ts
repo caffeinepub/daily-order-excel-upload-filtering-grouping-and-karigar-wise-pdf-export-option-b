@@ -9,7 +9,7 @@ export interface ParsedOrder {
 
 const REQUIRED_COLUMNS = ['Order No', 'Design', 'Weight', 'Size', 'Quantity', 'Remarks'];
 
-// Simple CSV parser for Excel files
+// Simple CSV parser for CSV files
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = '';
@@ -37,6 +37,29 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
+function parseCSV(text: string): string[][] {
+  const lines = text.split(/\r?\n/).filter(line => line.trim());
+  return lines.map(line => parseCSVLine(line));
+}
+
+function parseExcel(buffer: ArrayBuffer): string[][] {
+  if (!window.XLSX) {
+    throw new Error('XLSX library not loaded');
+  }
+  
+  const workbook = window.XLSX.read(buffer, { type: 'array' });
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  
+  // Convert to array of arrays
+  const data = window.XLSX.utils.sheet_to_json<any[]>(worksheet, { 
+    header: 1, 
+    raw: false, 
+    defval: '' 
+  });
+  return data as string[][];
+}
+
 export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -55,12 +78,13 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
         if (file.name.endsWith('.csv')) {
           // Parse CSV
           const text = data as string;
-          const lines = text.split(/\r?\n/).filter(line => line.trim());
-          rows = lines.map(line => parseCSVLine(line));
+          rows = parseCSV(text);
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          // Parse Excel
+          const buffer = data as ArrayBuffer;
+          rows = parseExcel(buffer);
         } else {
-          // For .xlsx/.xls files, we need to convert to text first
-          // Since we can't use xlsx library, we'll ask user to export as CSV
-          reject(new Error('Please export your Excel file as CSV format (.csv) and upload it. Excel binary formats (.xlsx, .xls) require additional libraries.'));
+          reject(new Error('Unsupported file format. Please upload .csv, .xlsx, or .xls files.'));
           return;
         }
 
@@ -70,11 +94,15 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
         }
 
         // First row is headers
-        const headers = rows[0].map(h => h.trim());
+        const headers = rows[0].map(h => String(h || '').trim());
         
-        // Validate required columns (case-insensitive)
+        // Validate required columns (case-insensitive, flexible matching)
         const findColumnIndex = (columnName: string): number => {
-          return headers.findIndex(h => h.toLowerCase().includes(columnName.toLowerCase()));
+          const searchTerms = columnName.toLowerCase().split(' ');
+          return headers.findIndex(h => {
+            const headerLower = h.toLowerCase();
+            return searchTerms.every(term => headerLower.includes(term));
+          });
         };
 
         const columnIndices = {
@@ -86,12 +114,13 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
           remarks: findColumnIndex('Remarks'),
         };
 
-        const missingColumns = REQUIRED_COLUMNS.filter((col) => {
-          const key = col.toLowerCase().replace(/\s+/g, '');
-          return !Object.entries(columnIndices).some(([k, idx]) => 
-            k.toLowerCase().includes(key.split(' ')[0].toLowerCase()) && idx !== -1
-          );
-        });
+        const missingColumns: string[] = [];
+        if (columnIndices.orderNo === -1) missingColumns.push('Order No');
+        if (columnIndices.design === -1) missingColumns.push('Design');
+        if (columnIndices.weight === -1) missingColumns.push('Weight');
+        if (columnIndices.size === -1) missingColumns.push('Size');
+        if (columnIndices.quantity === -1) missingColumns.push('Quantity');
+        if (columnIndices.remarks === -1) missingColumns.push('Remarks');
 
         if (missingColumns.length > 0) {
           reject(
@@ -104,12 +133,12 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
 
         // Parse data rows
         const orders: ParsedOrder[] = rows.slice(1).map((row) => ({
-          orderNo: (columnIndices.orderNo !== -1 ? row[columnIndices.orderNo] : '') || '',
-          design: (columnIndices.design !== -1 ? row[columnIndices.design] : '') || '',
-          weight: (columnIndices.weight !== -1 ? row[columnIndices.weight] : '') || '',
-          size: (columnIndices.size !== -1 ? row[columnIndices.size] : '') || '',
-          quantity: (columnIndices.quantity !== -1 ? row[columnIndices.quantity] : '') || '',
-          remarks: (columnIndices.remarks !== -1 ? row[columnIndices.remarks] : '') || '',
+          orderNo: String(row[columnIndices.orderNo] || '').trim(),
+          design: String(row[columnIndices.design] || '').trim(),
+          weight: String(row[columnIndices.weight] || '').trim(),
+          size: String(row[columnIndices.size] || '').trim(),
+          quantity: String(row[columnIndices.quantity] || '').trim(),
+          remarks: String(row[columnIndices.remarks] || '').trim(),
         }));
 
         // Filter out completely empty rows
@@ -130,11 +159,11 @@ export async function parseDailyOrders(file: File): Promise<ParsedOrder[]> {
       reject(new Error('Failed to read file'));
     };
 
-    // Read as text for CSV
+    // Read based on file type
     if (file.name.endsWith('.csv')) {
       reader.readAsText(file);
     } else {
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     }
   });
 }

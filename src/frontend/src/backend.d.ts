@@ -9,6 +9,7 @@ export interface None {
 export type Option<T> = Some<T> | None;
 export type Date_ = string;
 export interface Order {
+    design: string;
     orderId: string;
     product: string;
 }
@@ -32,9 +33,11 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getDailyOrders(date: Date_): Promise<Array<Order>>;
     getKarigarAssignments(date: Date_): Promise<Array<KarigarAssignment>>;
+    getKarigarForDesign(design: string): Promise<string | null>;
     getOrdersByKarigar(date: Date_, karigar: string): Promise<Array<Order>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    parseKarigarMappingFile(path: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     storeDailyOrders(date: Date_, orders: Array<Order>): Promise<void>;
 }

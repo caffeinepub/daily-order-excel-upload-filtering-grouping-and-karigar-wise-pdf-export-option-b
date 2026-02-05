@@ -1,15 +1,16 @@
 import Map "mo:core/Map";
 import Text "mo:core/Text";
+import List "mo:core/List";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Iter "mo:core/Iter";
-import List "mo:core/List";
-import Order "mo:core/Order";
 import Array "mo:core/Array";
-
+import Order "mo:core/Order";
+import Migration "migration";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -18,26 +19,25 @@ actor {
 
   type Order = {
     orderId : Text;
+    design : Text;
     product : Text;
-    // any other fields from Excel import
   };
 
   type KarigarAssignment = {
     orderId : Text;
-    karigar : Text; // Karigar's name
-    factory : ?Text; // Optional factory name
+    karigar : Text;
+    factory : ?Text;
   };
 
   public type UserProfile = {
     name : Text;
   };
 
-  // Persistent storage
   let dailyOrders = Map.empty<Date, List.List<Order>>();
   let karigarAssignments = Map.empty<Date, Map.Map<Text, KarigarAssignment>>();
   let userProfiles = Map.empty<Principal, UserProfile>();
+  let designToKarigar = Map.empty<Text, Text>();
 
-  // User profile management
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view profiles");
@@ -59,7 +59,6 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  // Order management functions
   public shared ({ caller }) func storeDailyOrders(date : Date, orders : [Order]) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admin can upload orders");
@@ -143,5 +142,36 @@ actor {
     };
 
     sortedOrders.toArray();
+  };
+
+  public shared ({ caller }) func parseKarigarMappingFile(path : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admin can parse mapping file");
+    };
+
+    let sheet1 = await readSheetEntries(path, "1");
+    let sheet2 = await readSheetEntries(path, "2");
+    let sheet3 = await readSheetEntries(path, "3");
+
+    updateDesignToKarigar(sheet1);
+    updateDesignToKarigar(sheet2);
+    updateDesignToKarigar(sheet3);
+  };
+
+  func readSheetEntries(_filePath : Text, _sheetName : Text) : async [(Text, Text)] {
+    [];
+  };
+
+  func updateDesignToKarigar(entries : [(Text, Text)]) {
+    for ((design, karigar) in entries.values()) {
+      designToKarigar.add(design, karigar);
+    };
+  };
+
+  public query ({ caller }) func getKarigarForDesign(design : Text) : async ?Text {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get karigar for design");
+    };
+    designToKarigar.get(design);
   };
 };

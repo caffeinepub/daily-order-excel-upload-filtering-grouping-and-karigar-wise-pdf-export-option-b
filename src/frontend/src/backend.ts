@@ -91,6 +91,7 @@ export class ExternalBlob {
 }
 export type Date_ = string;
 export interface Order {
+    design: string;
     orderId: string;
     product: string;
 }
@@ -115,9 +116,11 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getDailyOrders(date: Date_): Promise<Array<Order>>;
     getKarigarAssignments(date: Date_): Promise<Array<KarigarAssignment>>;
+    getKarigarForDesign(design: string): Promise<string | null>;
     getOrdersByKarigar(date: Date_, karigar: string): Promise<Array<Order>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    parseKarigarMappingFile(path: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     storeDailyOrders(date: Date_, orders: Array<Order>): Promise<void>;
 }
@@ -222,6 +225,20 @@ export class Backend implements backendInterface {
             return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getKarigarForDesign(arg0: string): Promise<string | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getKarigarForDesign(arg0);
+                return from_candid_opt_n10(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getKarigarForDesign(arg0);
+            return from_candid_opt_n10(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getOrdersByKarigar(arg0: Date_, arg1: string): Promise<Array<Order>> {
         if (this.processError) {
             try {
@@ -261,6 +278,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.isCallerAdmin();
+            return result;
+        }
+    }
+    async parseKarigarMappingFile(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.parseKarigarMappingFile(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.parseKarigarMappingFile(arg0);
             return result;
         }
     }

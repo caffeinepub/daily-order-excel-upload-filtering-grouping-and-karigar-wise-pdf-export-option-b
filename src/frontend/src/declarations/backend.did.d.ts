@@ -16,7 +16,11 @@ export interface KarigarAssignment {
   'orderId' : string,
   'factory' : [] | [string],
 }
-export interface Order { 'orderId' : string, 'product' : string }
+export interface Order {
+  'design' : string,
+  'orderId' : string,
+  'product' : string,
+}
 export interface UserProfile { 'name' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
@@ -32,9 +36,11 @@ export interface _SERVICE {
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getDailyOrders' : ActorMethod<[Date], Array<Order>>,
   'getKarigarAssignments' : ActorMethod<[Date], Array<KarigarAssignment>>,
+  'getKarigarForDesign' : ActorMethod<[string], [] | [string]>,
   'getOrdersByKarigar' : ActorMethod<[Date, string], Array<Order>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'parseKarigarMappingFile' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'storeDailyOrders' : ActorMethod<[Date, Array<Order>], undefined>,
 }

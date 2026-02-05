@@ -1,10 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 3,
-  "summary": "Order management app where the user manually uploads the daily Excel export (Option B). The app extracts specific columns, filters/sorts orders by design and karigar/factory, and generates daily karigar-wise PDF outputs.",
+  "projectStateVersion": 5,
+  "summary": "Order management app (Option B) where the user uploads two Excel files: (1) a cumulative OrderList file that should be treated as ‘today’s orders’ for display/processing, and (2) a multi-sheet mapping workbook that provides karigar names design-wise to enable automatic karigar-wise filtering/grouping and outputs.",
   "architectural_notes": [
     "Portal automation/scraping is out of scope; orders will be provided via manual Excel upload (Option B).",
-    "Do not store or hardcode portal credentials in the app; treat any login details as secrets and exclude from logs/storage."
+    "Do not store or hardcode portal credentials in the app; treat any login details as secrets and exclude from logs/storage.",
+    "Input will include two Excel uploads: a cumulative OrderList (treated as the selected day’s dataset) and a separate multi-sheet workbook used as a Design→Karigar mapping for grouping."
   ],
   "known_issues": [],
   "isFixRequest": false,
@@ -56,6 +57,38 @@
         "REQ-7"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-update-the-daily-orders-page-to-support-uploading-two-separate-files-for-the-selected-date-default-today-1-an-orderlist-workbook-that-contains-cumulative-orders-and-must-be-displayed-stored-as-the-selected-date-s-orders-and-2-a-karigar-mapping-workbook-mbar0502-copy-used-to-auto-group-filter-orders-karigar-wise",
+      "title": "Update the Daily Orders page to support uploading two separate files for the selected date (default: today): (1) an OrderList workbook that contains cumulative orders and must be displayed/stored as the selected date’s orders, and (2) a karigar mapping workbook (\"mbar0502 copy\") used to auto-group/filter orders karigar-wise.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-support-for-parsing-the-provided-orderlist-excel-workbook-format-e-g-orderlist17-from-xlsx-xls-and-still-accept-csv-and-extract-the-same-required-order-fields-per-row-order-no-design-weight-size-quantity-remarks",
+      "title": "Add support for parsing the provided OrderList Excel workbook format (e.g., OrderList17) from .xlsx/.xls (and still accept .csv) and extract the same required order fields per row: Order No, Design, Weight, Size, Quantity, Remarks.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-parsing-of-the-karigar-mapping-workbook-e-g-mbar0502-copy-that-contains-three-sheets-named-1-2-and-3-combine-these-sheets-into-a-single-design-karigar-mapping-and-use-it-to-automatically-assign-group-orders-karigar-wise-for-the-selected-date-based-on-each-order-s-design-value",
+      "title": "Implement parsing of the karigar mapping workbook (e.g., \"mbar0502 copy\") that contains three sheets named \"1\", \"2\", and \"3\"; combine these sheets into a single Design → Karigar mapping and use it to automatically assign/group orders karigar-wise for the selected date based on each order’s Design value.",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-safe-apply-mapping-workflow-and-visibility-into-mapping-results-including-how-many-orders-were-assigned-per-karigar-and-which-order-designs-could-not-be-matched-ensure-manual-assignment-remains-available-and-can-override-auto-assigned-results-when-needed",
+      "title": "Add a safe 'Apply mapping' workflow and visibility into mapping results, including how many orders were assigned per karigar and which order designs could not be matched; ensure manual assignment remains available and can override auto-assigned results when needed.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -89,6 +122,18 @@
       "reqIds": [
         "REQ-6"
       ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-11",
+      "summary": "Support uploading a second Excel workbook (multi-sheet) that maps Design -> Karigar (and use it to auto-assign/group orders karigar-wise)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "Treat the uploaded cumulative OrderList Excel as the selected date’s (default: today) orders (i.e., show all rows as today’s orders)",
+      "reqIds": [],
       "status": "pending"
     }
   ],

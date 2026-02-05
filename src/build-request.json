@@ -1,147 +1,95 @@
 {
   "kind": "build_request",
-  "title": "Daily order Excel upload, filtering/grouping, and karigar-wise PDF export (Option B)",
+  "title": "Support two-Excel upload: cumulative orders as today + multi-sheet design→karigar mapping for auto-grouping",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-1",
-      "text": "Implement a daily orders Excel upload flow where a user can select a date (default: today) and upload the portal-exported Excel file for that date.",
+      "id": "REQ-8",
+      "text": "Update the Daily Orders page to support uploading two separate files for the selected date (default: today): (1) an OrderList workbook that contains cumulative orders and must be displayed/stored as the selected date’s orders, and (2) a karigar mapping workbook (\"mbar0502 copy\") used to auto-group/filter orders karigar-wise.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-USER-1"
         ],
         "quotes": [
-          "Option B"
+          "Now I’m sharing you two excel files\n\n1) OrderList17 , that contains total order till date so show this all orders as orders of today’s date \n2) mbar0502 copy, this excel has three sheet named 1,2,3 all these sheets contain karigar name as per design wise \n\nUploading these are opening data and filtering all the orders as per karigar wise."
         ]
       },
       "acceptanceCriteria": [
-        "A page/section exists for 'Daily Orders' with a date picker defaulting to the current date.",
-        "User can choose an Excel file to upload (common .xls/.xlsx formats).",
-        "UI clearly shows upload success/failure states and the selected date/file name."
+        "The page provides two clearly labeled upload inputs/areas: one for the OrderList file and one for the karigar mapping file.",
+        "Uploading the OrderList file replaces the current in-memory orders and stores them under the currently selected date (default today), regardless of whether the file contains historical/cumulative rows.",
+        "Uploading the mapping file does not overwrite the stored orders; it only affects karigar grouping/assignments for the selected date.",
+        "All user-facing UI text for the new controls is in English."
       ]
     },
     {
-      "id": "REQ-2",
-      "text": "Parse the uploaded Excel file and extract only these columns for each order row: Order No, Design, Weight, Size, Quantity, Remarks.",
+      "id": "REQ-9",
+      "text": "Add support for parsing the provided OrderList Excel workbook format (e.g., OrderList17) from .xlsx/.xls (and still accept .csv) and extract the same required order fields per row: Order No, Design, Weight, Size, Quantity, Remarks.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-USER-1"
         ],
         "quotes": [
-          "Only details of 1) Order No 2) Design 3) Weight 4) Size  5) Quantity 6) Remarks Only these columns data need to be extracted from the excel on a daily basis."
+          "1) OrderList17 , that contains total order till date so show this all orders as orders of today’s date"
         ]
       },
       "acceptanceCriteria": [
-        "After upload, a table renders with only the 6 required fields (no extra columns displayed).",
-        "If any of the required columns are missing/unreadable, the app shows an English validation error explaining what is missing.",
-        "Empty cells are handled gracefully (rendered as blank, not as 'undefined' or crashing)."
+        "The OrderList upload accepts .xlsx/.xls and .csv files.",
+        "After upload, the app displays a table of parsed orders using the extracted fields (Order No, Design, Weight, Size, Quantity, Remarks).",
+        "If required columns are missing, the app shows a clear error describing which columns are missing.",
+        "The upload no longer blocks users with a 'Please export to CSV' error when they provide a valid .xlsx/.xls file."
       ]
     },
     {
-      "id": "REQ-3",
-      "text": "Provide interactive filtering and sorting of the extracted daily orders, including sorting by Design and searching/filtering across the extracted fields.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "sort it as design wise and filter it out"
-        ]
-      },
-      "acceptanceCriteria": [
-        "User can sort the table by Design (ascending/descending).",
-        "User can filter/search orders using a text input (matching at least Order No, Design, Remarks).",
-        "Filters/sorts update the displayed table immediately without re-uploading the file."
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Support grouping orders karigar-wise (and factory-wise if needed) to produce separate per-group views and exports. Since the extracted Excel fields do not include karigar/factory, provide an in-app way to assign each order (or each Design) to a karigar and optional factory for the current day, and reuse those assignments for consistent grouping.",
+      "id": "REQ-10",
+      "text": "Implement parsing of the karigar mapping workbook (e.g., \"mbar0502 copy\") that contains three sheets named \"1\", \"2\", and \"3\"; combine these sheets into a single Design → Karigar mapping and use it to automatically assign/group orders karigar-wise for the selected date based on each order’s Design value.",
       "target": "both",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-USER-1"
         ],
         "quotes": [
-          "filter it out for individual karigar wise",
-          "filtered factory wise and displayed seperatly."
+          "2) mbar0502 copy, this excel has three sheet named 1,2,3 all these sheets contain karigar name as per design wise",
+          "Uploading these are opening data and filtering all the orders as per karigar wise."
         ]
       },
       "acceptanceCriteria": [
-        "UI allows assigning a 'Karigar' (required for grouping) and 'Factory' (optional) to orders or Designs for the selected date.",
-        "User can view a grouped list (e.g., list of karigars/factories) and click into a group to see only its orders.",
-        "Assignments persist (saved in backend) so a page refresh does not lose grouping work for that date.",
-        "User can edit/remove assignments and the grouped views update accordingly."
+        "The mapping upload accepts .xlsx/.xls (and optionally .csv if feasible) and reads sheets named \"1\", \"2\", and \"3\" when present.",
+        "The app derives karigar assignments for orders by matching the order’s Design to the mapping workbook’s design-wise karigar entries.",
+        "After applying the mapping, the Groups (karigar) sidebar populates automatically and selecting a karigar filters the displayed orders accordingly.",
+        "Auto-assignments are persisted for the selected date using existing backend assignment storage, so reloading the date shows the same karigar grouping without re-uploading the mapping file."
       ]
     },
     {
-      "id": "REQ-5",
-      "text": "Generate downloadable PDF exports for each karigar group for the selected date, containing that group’s orders with the extracted fields (Order No, Design, Weight, Size, Quantity, Remarks) and a clear header including the date and group name.",
+      "id": "REQ-11",
+      "text": "Add a safe 'Apply mapping' workflow and visibility into mapping results, including how many orders were assigned per karigar and which order designs could not be matched; ensure manual assignment remains available and can override auto-assigned results when needed.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-USER-1"
         ],
         "quotes": [
-          "share it as pdfs for all different karigar wise on a daily basis."
+          "Uploading these are opening data and filtering all the orders as per karigar wise."
         ]
       },
       "acceptanceCriteria": [
-        "For a selected date, user can export a PDF for a specific karigar group.",
-        "Generated PDF includes a title/header with the selected date and the karigar name, and a tabular list of orders with the 6 extracted fields.",
-        "PDF generation works fully from the uploaded file + in-app assignments without requiring external services.",
-        "If a karigar group has zero orders, export is disabled or produces a PDF with a clear 'No orders' message (English)."
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "text": "Store daily uploaded order data and the derived grouping assignments in the backend so the user can reopen past dates and re-export PDFs without re-uploading the Excel file.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "upload the daily Excel file",
-          "on a daily basis"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Backend exposes methods to save and load daily orders keyed by date.",
-        "Backend exposes methods to save and load karigar/factory assignment data keyed by date.",
-        "Frontend provides a way to load a previously saved date and see the same order table, groupings, and export options."
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "text": "Create a coherent, distinct visual theme for the app (colors, typography, layout) and apply it consistently across the upload, table, grouping, and export screens.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Create an app to make order management system easier."
-        ]
-      },
-      "acceptanceCriteria": [
-        "UI uses a consistent design system across all pages/sections (spacing, headings, button styles, table styling).",
-        "Theme avoids default-looking unstyled layouts and is applied consistently to empty/loading/error states.",
-        "All user-facing text is in English."
+        "After uploading the mapping workbook, the UI shows a summary: total orders matched/assigned, and a list/count of unmatched designs (or unmatched orders).",
+        "The UI provides an explicit action to apply the mapping to the selected date (or clearly indicates that upload immediately applies it), and prevents accidental silent overwrites.",
+        "Manual assignment UI (existing Assignment panel) still works after mapping is applied and can change assignments for selected orders.",
+        "If an order already has an assignment for the selected date, the UI provides a clear option controlling whether mapping should overwrite existing assignments or only fill missing assignments."
       ]
     }
   ],
   "constraints": [
-    "Do not attempt to automate logging into https://mpn.malabargroup.com/ or perform browser-like clicking/scraping from the app; the workflow must be manual Excel upload (Option B).",
-    "Use English for all user-facing UI strings."
+    "Backend must remain a single Motoko actor with all logic in backend/main.mo; add backend/migration.mo only if a persisted-state schema change is required.",
+    "Do not edit any files under frontend/src/components/ui or any frontend immutable paths listed in SYSTEM_CONTEXT; compose existing UI components instead.",
+    "Use English for any user-facing text."
   ],
   "nonGoals": [
-    "Building any headless-browser automation to download the Excel from the portal at 9:00pm IST.",
-    "Integrating third-party authentication providers (only Internet Identity is supported, and it is not required unless explicitly requested).",
-    "Real-time messaging/notifications for daily extraction reminders."
+    "Automating portal login/exports or scraping orders from a third-party portal.",
+    "Adding third-party authentication providers (only Internet Identity is supported).",
+    "Adding external databases or non-Internet-Computer backend services."
   ],
   "imageRequirements": {
     "required": [],

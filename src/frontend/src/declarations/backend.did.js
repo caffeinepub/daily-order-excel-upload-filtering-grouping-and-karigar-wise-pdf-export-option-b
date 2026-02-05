@@ -15,7 +15,11 @@ export const UserRole = IDL.Variant({
 });
 export const Date = IDL.Text;
 export const UserProfile = IDL.Record({ 'name' : IDL.Text });
-export const Order = IDL.Record({ 'orderId' : IDL.Text, 'product' : IDL.Text });
+export const Order = IDL.Record({
+  'design' : IDL.Text,
+  'orderId' : IDL.Text,
+  'product' : IDL.Text,
+});
 export const KarigarAssignment = IDL.Record({
   'karigar' : IDL.Text,
   'orderId' : IDL.Text,
@@ -38,6 +42,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(KarigarAssignment)],
       ['query'],
     ),
+  'getKarigarForDesign' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
   'getOrdersByKarigar' : IDL.Func(
       [Date, IDL.Text],
       [IDL.Vec(Order)],
@@ -49,6 +54,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'parseKarigarMappingFile' : IDL.Func([IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'storeDailyOrders' : IDL.Func([Date, IDL.Vec(Order)], [], []),
 });
@@ -63,7 +69,11 @@ export const idlFactory = ({ IDL }) => {
   });
   const Date = IDL.Text;
   const UserProfile = IDL.Record({ 'name' : IDL.Text });
-  const Order = IDL.Record({ 'orderId' : IDL.Text, 'product' : IDL.Text });
+  const Order = IDL.Record({
+    'design' : IDL.Text,
+    'orderId' : IDL.Text,
+    'product' : IDL.Text,
+  });
   const KarigarAssignment = IDL.Record({
     'karigar' : IDL.Text,
     'orderId' : IDL.Text,
@@ -86,6 +96,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(KarigarAssignment)],
         ['query'],
       ),
+    'getKarigarForDesign' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(IDL.Text)],
+        ['query'],
+      ),
     'getOrdersByKarigar' : IDL.Func(
         [Date, IDL.Text],
         [IDL.Vec(Order)],
@@ -97,6 +112,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'parseKarigarMappingFile' : IDL.Func([IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'storeDailyOrders' : IDL.Func([Date, IDL.Vec(Order)], [], []),
   });

@@ -1,18 +1,20 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Upload, AlertCircle } from 'lucide-react';
+import { Calendar, Upload, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useGetDailyOrders, useStoreDailyOrders, useGetKarigarAssignments } from '@/hooks/useQueries';
+import { useGetDailyOrders, useStoreDailyOrders, useGetKarigarAssignments, useAssignKarigar } from '@/hooks/useQueries';
 import { parseDailyOrders, type ParsedOrder } from './excel/parseDailyOrders';
+import { parseKarigarMapping, type KarigarMapping } from './excel/parseKarigarMapping';
 import OrdersTable from './components/OrdersTable';
 import OrdersToolbar from './components/OrdersToolbar';
 import AssignmentPanel from './components/AssignmentPanel';
 import GroupsSidebar from './components/GroupsSidebar';
 import ExportPanel from './components/ExportPanel';
+import MappingApplyPanel, { type MappingSummary } from './components/MappingApplyPanel';
 import { useOrderFilters } from './hooks/useOrderFilters';
 
 export default function DailyOrdersPage() {
@@ -22,17 +24,24 @@ export default function DailyOrdersPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedKarigar, setSelectedKarigar] = useState<string | null>(null);
+  
+  // Mapping state
+  const [karigarMapping, setKarigarMapping] = useState<KarigarMapping | null>(null);
+  const [mappingError, setMappingError] = useState<string | null>(null);
+  const [isUploadingMapping, setIsUploadingMapping] = useState(false);
+  const [isApplyingMapping, setIsApplyingMapping] = useState(false);
 
   const { data: savedOrders = [], isLoading: loadingOrders } = useGetDailyOrders(selectedDate);
   const { data: assignments = [] } = useGetKarigarAssignments(selectedDate);
   const storeDailyOrders = useStoreDailyOrders();
+  const assignKarigar = useAssignKarigar();
 
   // Use uploaded orders if available, otherwise use saved orders
   const currentOrders = useMemo(() => {
     if (uploadedOrders.length > 0) return uploadedOrders;
     return savedOrders.map((o) => ({
       orderNo: o.orderId,
-      design: o.product,
+      design: o.design || o.product,
       weight: '',
       size: '',
       quantity: '',
@@ -68,7 +77,37 @@ export default function DailyOrdersPage() {
     return filteredOrders;
   }, [selectedKarigar, ordersByKarigar, filteredOrders]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compute mapping summary
+  const mappingSummary = useMemo((): MappingSummary | null => {
+    if (!karigarMapping || currentOrders.length === 0) return null;
+
+    const assignmentMap = new Map(assignments.map((a) => [a.orderId, a]));
+    const matchedByKarigar = new Map<string, number>();
+    const unmatchedDesigns = new Set<string>();
+    let matchedCount = 0;
+
+    currentOrders.forEach((order) => {
+      const karigar = karigarMapping[order.design];
+      if (karigar) {
+        matchedCount++;
+        matchedByKarigar.set(karigar, (matchedByKarigar.get(karigar) || 0) + 1);
+      } else {
+        if (order.design) {
+          unmatchedDesigns.add(order.design);
+        }
+      }
+    });
+
+    return {
+      totalOrders: currentOrders.length,
+      matchedOrders: matchedCount,
+      unmatchedOrders: currentOrders.length - matchedCount,
+      matchedByKarigar,
+      unmatchedDesigns: Array.from(unmatchedDesigns).sort(),
+    };
+  }, [karigarMapping, currentOrders, assignments]);
+
+  const handleOrderListUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -82,6 +121,7 @@ export default function DailyOrdersPage() {
       // Store in backend
       const backendOrders = orders.map((o) => ({
         orderId: o.orderNo,
+        design: o.design,
         product: o.design,
       }));
       await storeDailyOrders.mutateAsync({ date: selectedDate, orders: backendOrders });
@@ -94,10 +134,79 @@ export default function DailyOrdersPage() {
     }
   };
 
+  const handleMappingUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingMapping(true);
+    setMappingError(null);
+
+    try {
+      const mapping = await parseKarigarMapping(file);
+      setKarigarMapping(mapping);
+    } catch (error: any) {
+      setMappingError(error.message || 'Failed to parse mapping file');
+      setKarigarMapping(null);
+    } finally {
+      setIsUploadingMapping(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleApplyMapping = async (overwriteExisting: boolean) => {
+    if (!karigarMapping || !mappingSummary) return;
+
+    setIsApplyingMapping(true);
+    try {
+      const assignmentMap = new Map(assignments.map((a) => [a.orderId, a]));
+      
+      // Group orders by karigar based on mapping
+      const ordersByKarigarToAssign = new Map<string, string[]>();
+      
+      currentOrders.forEach((order) => {
+        const karigar = karigarMapping[order.design];
+        if (!karigar) return;
+
+        // Check if order already has assignment
+        const existingAssignment = assignmentMap.get(order.orderNo);
+        if (existingAssignment && !overwriteExisting) {
+          return; // Skip if already assigned and not overwriting
+        }
+
+        if (!ordersByKarigarToAssign.has(karigar)) {
+          ordersByKarigarToAssign.set(karigar, []);
+        }
+        ordersByKarigarToAssign.get(karigar)!.push(order.orderNo);
+      });
+
+      // Apply assignments for each karigar
+      const assignmentPromises = Array.from(ordersByKarigarToAssign.entries()).map(
+        ([karigar, orderIds]) =>
+          assignKarigar.mutateAsync({
+            date: selectedDate,
+            orderIds,
+            karigar,
+            factory: null,
+          })
+      );
+
+      await Promise.all(assignmentPromises);
+      
+      // Clear mapping after successful application
+      setKarigarMapping(null);
+    } catch (error: any) {
+      setMappingError(error.message || 'Failed to apply mapping');
+    } finally {
+      setIsApplyingMapping(false);
+    }
+  };
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
     setUploadedOrders([]);
     setParseError(null);
+    setMappingError(null);
+    setKarigarMapping(null);
     setSelectedOrderIds(new Set());
     setSelectedKarigar(null);
   };
@@ -150,17 +259,17 @@ export default function DailyOrdersPage() {
             </CardContent>
           </Card>
 
-          {/* Upload */}
+          {/* Upload OrderList */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Upload className="h-4 w-4" />
-                Upload File
+                Upload OrderList
               </CardTitle>
-              <CardDescription>Upload CSV file with daily orders</CardDescription>
+              <CardDescription>Upload order file (.csv, .xlsx, .xls)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Label htmlFor="file-upload" className="cursor-pointer">
+              <Label htmlFor="orderlist-upload" className="cursor-pointer">
                 <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 transition-colors hover:border-muted-foreground/50">
                   <div className="text-center">
                     <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
@@ -170,22 +279,64 @@ export default function DailyOrdersPage() {
                   </div>
                 </div>
                 <Input
-                  id="file-upload"
+                  id="orderlist-upload"
                   type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleOrderListUpload}
                   disabled={isUploading}
                   className="hidden"
                 />
               </Label>
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Export your Excel file as CSV format before uploading
-                </AlertDescription>
-              </Alert>
             </CardContent>
           </Card>
+
+          {/* Upload Karigar Mapping */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileSpreadsheet className="h-4 w-4" />
+                Upload Karigar Mapping
+              </CardTitle>
+              <CardDescription>Upload mapping file with sheets 1, 2, 3</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Label htmlFor="mapping-upload" className="cursor-pointer">
+                <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 transition-colors hover:border-muted-foreground/50">
+                  <div className="text-center">
+                    <FileSpreadsheet className="mx-auto h-6 w-6 text-muted-foreground" />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {isUploadingMapping ? 'Uploading...' : 'Click to upload'}
+                    </p>
+                  </div>
+                </div>
+                <Input
+                  id="mapping-upload"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleMappingUpload}
+                  disabled={isUploadingMapping || currentOrders.length === 0}
+                  className="hidden"
+                />
+              </Label>
+              {currentOrders.length === 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Upload OrderList first before uploading mapping
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Mapping Apply Panel */}
+          {mappingSummary && (
+            <MappingApplyPanel
+              summary={mappingSummary}
+              isApplying={isApplyingMapping}
+              onApply={handleApplyMapping}
+            />
+          )}
 
           {/* Groups */}
           {currentOrders.length > 0 && (
@@ -205,6 +356,12 @@ export default function DailyOrdersPage() {
             </Alert>
           )}
 
+          {mappingError && (
+            <Alert variant="destructive">
+              <AlertDescription>{mappingError}</AlertDescription>
+            </Alert>
+          )}
+
           {loadingOrders ? (
             <Card>
               <CardContent className="flex h-64 items-center justify-center">
@@ -217,7 +374,7 @@ export default function DailyOrdersPage() {
                 <Upload className="h-12 w-12 text-muted-foreground" />
                 <div className="text-center">
                   <p className="font-medium">No orders for {format(new Date(selectedDate), 'MMM dd, yyyy')}</p>
-                  <p className="text-sm text-muted-foreground">Upload a CSV file to get started</p>
+                  <p className="text-sm text-muted-foreground">Upload an OrderList file to get started</p>
                 </div>
               </CardContent>
             </Card>
