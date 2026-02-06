@@ -1,6 +1,6 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ParsedOrder } from '../excel/parseDailyOrders';
 import type { KarigarAssignment } from '@/backend';
 
@@ -9,48 +9,36 @@ interface OrdersTableProps {
   assignments: KarigarAssignment[];
   selectedOrderIds: Set<string>;
   onToggleSelection: (orderId: string) => void;
-  mappingLookup?: Map<string, { karigar: string; genericName?: string }>;
+  mappingLookup: Map<string, { karigar: string; genericName?: string }>;
 }
 
-export default function OrdersTable({ 
-  orders, 
-  assignments, 
-  selectedOrderIds, 
+export default function OrdersTable({
+  orders,
+  assignments,
+  selectedOrderIds,
   onToggleSelection,
-  mappingLookup 
+  mappingLookup,
 }: OrdersTableProps) {
   const assignmentMap = new Map(assignments.map((a) => [a.orderId, a]));
-
-  if (orders.length === 0) {
-    return (
-      <div className="flex h-32 items-center justify-center text-muted-foreground">
-        No orders to display
-      </div>
-    );
-  }
 
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-12"></TableHead>
+            <TableHead className="w-12">Select</TableHead>
             <TableHead>Order No</TableHead>
-            <TableHead>Design / Product</TableHead>
-            <TableHead>Weight</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Quantity</TableHead>
-            <TableHead>Remarks</TableHead>
+            <TableHead>Design Code</TableHead>
+            <TableHead>Generic Name</TableHead>
             <TableHead>Karigar</TableHead>
+            <TableHead>Factory</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {orders.map((order) => {
             const assignment = assignmentMap.get(order.orderNo);
-            const mapping = mappingLookup?.get(order.design);
-            const displayDesign = mapping?.genericName 
-              ? `${order.design} — ${mapping.genericName}`
-              : order.design;
+            const mapping = mappingLookup.get(order.design);
+            const genericName = mapping?.genericName || '-';
             
             return (
               <TableRow key={order.orderNo}>
@@ -61,20 +49,20 @@ export default function OrdersTable({
                   />
                 </TableCell>
                 <TableCell className="font-medium">{order.orderNo}</TableCell>
-                <TableCell className="max-w-xs">
-                  <div className="truncate" title={displayDesign}>
-                    {displayDesign}
-                  </div>
-                </TableCell>
-                <TableCell>{order.weight}</TableCell>
-                <TableCell>{order.size}</TableCell>
-                <TableCell>{order.quantity}</TableCell>
-                <TableCell className="max-w-xs truncate">{order.remarks}</TableCell>
+                <TableCell>{order.design}</TableCell>
+                <TableCell className="text-muted-foreground">{genericName}</TableCell>
                 <TableCell>
                   {assignment ? (
                     <Badge variant="secondary">{assignment.karigar}</Badge>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Unassigned</span>
+                    <span className="text-sm text-muted-foreground">Not assigned</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {assignment?.factory ? (
+                    <Badge variant="outline">{assignment.factory}</Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
                   )}
                 </TableCell>
               </TableRow>

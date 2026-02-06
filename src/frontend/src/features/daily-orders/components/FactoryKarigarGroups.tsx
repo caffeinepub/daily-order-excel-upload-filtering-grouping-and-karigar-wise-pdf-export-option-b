@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import OrdersTable from './OrdersTable';
 import { exportKarigarPdf } from '../pdf/exportKarigarPdf';
 import type { ParsedOrder } from '../excel/parseDailyOrders';
@@ -16,6 +17,8 @@ interface FactoryKarigarGroupsProps {
   selectedDate: string;
   mappingLookup: Map<string, { karigar: string; genericName?: string }>;
   showDownloadButtons?: boolean;
+  selectedKarigar?: string | null;
+  onSelectKarigar?: (karigar: string | null) => void;
 }
 
 export default function FactoryKarigarGroups({
@@ -27,6 +30,8 @@ export default function FactoryKarigarGroups({
   selectedDate,
   mappingLookup,
   showDownloadButtons = false,
+  selectedKarigar = null,
+  onSelectKarigar,
 }: FactoryKarigarGroupsProps) {
   const [exportingKarigar, setExportingKarigar] = useState<string | null>(null);
 
@@ -56,13 +61,18 @@ export default function FactoryKarigarGroups({
 
   const karigars = Array.from(ordersByKarigar.keys()).sort();
 
+  // Filter karigars based on selection
+  const displayKarigars = selectedKarigar 
+    ? karigars.filter(k => k === selectedKarigar)
+    : karigars;
+
   const handleKarigarExport = async (karigar: string) => {
     const karigarOrders = ordersByKarigar.get(karigar) || [];
     if (karigarOrders.length === 0) return;
 
     setExportingKarigar(karigar);
     try {
-      await exportKarigarPdf(selectedDate, karigar, karigarOrders);
+      await exportKarigarPdf(selectedDate, karigar, karigarOrders, mappingLookup);
     } finally {
       setExportingKarigar(null);
     }
@@ -78,7 +88,30 @@ export default function FactoryKarigarGroups({
 
   return (
     <div className="space-y-6">
-      {karigars.map((karigar) => {
+      {/* Karigar Filter */}
+      {onSelectKarigar && karigars.length > 1 && (
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select
+            value={selectedKarigar || 'all'}
+            onValueChange={(value) => onSelectKarigar(value === 'all' ? null : value)}
+          >
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Filter by karigar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Karigars ({karigars.length})</SelectItem>
+              {karigars.map((karigar) => (
+                <SelectItem key={karigar} value={karigar}>
+                  {karigar} ({ordersByKarigar.get(karigar)?.length || 0})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {displayKarigars.map((karigar) => {
         const karigarOrders = ordersByKarigar.get(karigar) || [];
         const isExporting = exportingKarigar === karigar;
         

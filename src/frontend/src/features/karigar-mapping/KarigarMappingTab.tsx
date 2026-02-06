@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileSpreadsheet, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { FileSpreadsheet, Upload, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,13 +27,16 @@ export default function KarigarMappingTab() {
     try {
       const parsedMapping = await parseKarigarMapping(file);
       
-      // Convert to backend format: Array<[sheetName, Array<[design, karigar]>]>
+      // Convert to backend format: Array<[sheetName, Array<[design, data]>]>
+      // data format: "karigar|genericName" or just "karigar"
       const workbookData: Array<[string, Array<[string, string]>]> = Object.entries(parsedMapping).map(
         ([sheetName, sheetData]) => {
-          // sheetData.entries is a Map, so we need to convert it to an array
-          const entriesArray = Array.from(sheetData.entries).map(([design, entry]) => 
-            [design, entry.karigar] as [string, string]
-          );
+          const entriesArray = Array.from(sheetData.entries).map(([design, entry]) => {
+            const data = entry.genericName 
+              ? `${entry.karigar}|${entry.genericName}`
+              : entry.karigar;
+            return [design, data] as [string, string];
+          });
           return [sheetName, entriesArray];
         }
       );
@@ -41,7 +44,6 @@ export default function KarigarMappingTab() {
       await saveMappingWorkbook.mutateAsync(workbookData);
       setUploadSuccess(true);
       
-      // Clear success message after 3 seconds
       setTimeout(() => setUploadSuccess(false), 3000);
     } catch (error: any) {
       setUploadError(error.message || 'Failed to upload mapping file');
@@ -86,26 +88,29 @@ export default function KarigarMappingTab() {
               Upload Mapping Workbook
             </CardTitle>
             <CardDescription>
-              Upload an Excel file (.xlsx, .xls) with sheets "1", "2", and "3" containing design-to-karigar mappings
+              Upload an Excel (.xlsx, .xls) or PDF file with design code, generic name, and karigar name
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Label htmlFor="mapping-upload" className="cursor-pointer">
               <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 transition-colors hover:border-muted-foreground/50">
                 <div className="text-center">
-                  <FileSpreadsheet className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <div className="mx-auto flex h-8 w-8 items-center justify-center">
+                    <FileSpreadsheet className="h-6 w-6 text-muted-foreground" />
+                    <FileText className="h-6 w-6 text-muted-foreground -ml-2" />
+                  </div>
                   <p className="mt-2 text-sm font-medium">
                     {isUploading ? 'Uploading...' : 'Click to upload mapping file'}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Excel files with sheets 1, 2, 3
+                    Excel or PDF files
                   </p>
                 </div>
               </div>
               <Input
                 id="mapping-upload"
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx,.xls,.pdf"
                 onChange={handleMappingUpload}
                 disabled={isUploading}
                 className="hidden"
@@ -115,7 +120,9 @@ export default function KarigarMappingTab() {
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                The mapping file should contain sheets named "1", "2", and "3". Each sheet should have columns for design/product code, karigar name, and optionally a "Name" column for generic product names. Sheets 1 and 3 take priority over sheet 2.
+                The mapping file should contain design/product code, generic product name (optional), and karigar name columns. 
+                For Excel files, sheets 1, 2, and 3 are supported (sheets 1 and 3 take priority). 
+                For PDF files, the parser will extract tabular data automatically.
               </AlertDescription>
             </Alert>
           </CardContent>

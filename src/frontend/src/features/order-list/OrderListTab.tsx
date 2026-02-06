@@ -13,6 +13,7 @@ import type { ParsedOrder } from '../daily-orders/excel/parseDailyOrders';
 export default function OrderListTab() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedFactory, setSelectedFactory] = useState<string | null>(null);
+  const [selectedKarigar, setSelectedKarigar] = useState<string | null>(null);
 
   // Swipe state
   const touchStartX = useRef<number>(0);
@@ -33,9 +34,14 @@ export default function OrderListTab() {
       const sheet = mappingWorkbook.find(([name]) => name === sheetName);
       if (sheet) {
         const [, entries] = sheet;
-        entries.forEach(([design, karigar]) => {
+        entries.forEach(([design, data]) => {
           if (!lookup.has(design)) {
-            lookup.set(design, { karigar });
+            // Parse data: "karigar|genericName" or just "karigar"
+            const parts = data.split('|');
+            lookup.set(design, { 
+              karigar: parts[0],
+              genericName: parts[1] || undefined
+            });
           }
         });
       }
@@ -97,6 +103,7 @@ export default function OrderListTab() {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
     setSelectedFactory(null);
+    setSelectedKarigar(null);
   };
 
   // Swipe handlers
@@ -158,6 +165,7 @@ export default function OrderListTab() {
               selectedFactory={selectedFactory}
               ordersByFactory={ordersByFactory}
               assignments={assignments}
+              mappingLookup={mappingLookup}
             />
           )}
         </div>
@@ -221,6 +229,8 @@ export default function OrderListTab() {
               selectedDate={selectedDate}
               mappingLookup={mappingLookup}
               showDownloadButtons={true}
+              selectedKarigar={selectedKarigar}
+              onSelectKarigar={setSelectedKarigar}
             />
           </CardContent>
         </Card>

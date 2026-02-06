@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 11,
-  "summary": "Order management app (Option B) where the user uploads a cumulative OrderList (treated as today/selected date’s orders) and uses a standard (not daily) multi-sheet karigar mapping workbook to auto-group/sort orders by Design code, then view orders factory-wise via swipeable factory screens and karigar-wise tabs with per-karigar download actions, within a 3-tab app layout and a landing page titled “Shree I Jewellery Order Management System”.",
+  "projectStateVersion": 13,
+  "summary": "Order management app (Option B) where the user uploads a cumulative OrderList (treated as today/selected date’s orders) and uses a standard (not daily) karigar mapping document (Excel or PDF) to auto-enrich orders with Generic Name + Karigar Name by Design code, then view orders factory-wise via swipeable factory screens and karigar-wise grouping with export actions, within an app layout titled “Shree I Jewellery Order Management System” (default opens to Order List).",
   "architectural_notes": [
     "Portal automation/scraping is out of scope; orders will be provided via manual Excel upload (Option B).",
     "Do not store or hardcode portal credentials in the app; treat any login details as secrets and exclude from logs/storage.",
@@ -9,11 +9,14 @@
     "App should open without requiring user login/authentication (no auth gate on launch).",
     "Add a landing page/title screen and a 3-tab app structure: Order List (factory-wise), Daily Order Upload, and Karigar Mapping.",
     "Karigar mapping workbook is a standard/persistent dataset updated only when required via manual upload (not a daily upload).",
-    "The mapping workbook’s “Name” column represents a generic product name associated with the product/design code and must be handled accordingly when grouping/displaying."
+    "The mapping workbook’s “Name” column represents a generic product name associated with the product/design code and must be handled accordingly when grouping/displaying.",
+    "Karigar mapping source must support either Excel or PDF; requiring three sheets named 1/2/3 is optional and must not be assumed.",
+    "Order display should be enriched from mapping by adding derived columns (Generic Name, Karigar Name) matched via Design code."
   ],
   "known_issues": [
     "Excel upload/list is not reading the uploaded Excel file and the app fails/crashes during upload.",
-    "Karigar names are being mismatched due to incorrect parsing/usage of the karigar mapping workbook (sheets/columns), resulting in improper karigar-wise filtering/grouping."
+    "Karigar names are being mismatched due to incorrect parsing/usage of the karigar mapping workbook (sheets/columns), resulting in improper karigar-wise filtering/grouping.",
+    "Generic Name mapping/enrichment appears incorrect for some design codes (e.g., showing values like \"3+1\", \"4S IPL\" as generic design names), indicating mapping parsing/matching issues."
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -295,6 +298,36 @@
       "reqIds": [
         "REQ-21"
       ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-28",
+      "summary": "Allow karigar mapping upload as either Excel or PDF; sheets 1/2/3 structure should be optional (not required).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-29",
+      "summary": "Parse mapping PDF containing Design Code, Generic Name, Karigar Name; match by Design code and enrich all orders by adding columns for Generic Name and Karigar Name.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-30",
+      "summary": "In factory-wise views, filter/group orders using the mapped Karigar Name (after enrichment) and show factory sections accordingly.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-31",
+      "summary": "Add a factory-wise 'Select all orders and export' option (not only individual selection).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-32",
+      "summary": "Revamp navigation: move top tabs into a left-side menu/drawer opened via a top icon; default app landing should open directly to the Order List page.",
+      "reqIds": [],
       "status": "pending"
     }
   ],

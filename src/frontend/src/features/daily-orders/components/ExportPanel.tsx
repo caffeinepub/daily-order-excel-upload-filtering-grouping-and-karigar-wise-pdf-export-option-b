@@ -10,9 +10,16 @@ interface ExportPanelProps {
   selectedFactory: string | null;
   ordersByFactory: Map<string, ParsedOrder[]>;
   assignments: KarigarAssignment[];
+  mappingLookup: Map<string, { karigar: string; genericName?: string }>;
 }
 
-export default function ExportPanel({ selectedDate, selectedFactory, ordersByFactory, assignments }: ExportPanelProps) {
+export default function ExportPanel({ 
+  selectedDate, 
+  selectedFactory, 
+  ordersByFactory, 
+  assignments,
+  mappingLookup 
+}: ExportPanelProps) {
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
@@ -23,7 +30,7 @@ export default function ExportPanel({ selectedDate, selectedFactory, ordersByFac
 
     setIsExporting(true);
     try {
-      await exportFactoryHtml(selectedDate, selectedFactory, orders, assignments);
+      await exportFactoryHtml(selectedDate, selectedFactory, orders, assignments, mappingLookup);
     } finally {
       setIsExporting(false);
     }
@@ -37,7 +44,7 @@ export default function ExportPanel({ selectedDate, selectedFactory, ordersByFac
       size="sm"
       onClick={handleExport}
       disabled={!canExport || isExporting}
-      title={!selectedFactory ? 'Select a factory to export' : ''}
+      title={!selectedFactory ? 'Select a factory to export' : 'Export all orders for this factory'}
     >
       {isExporting ? (
         <>
@@ -47,7 +54,7 @@ export default function ExportPanel({ selectedDate, selectedFactory, ordersByFac
       ) : (
         <>
           <FileDown className="mr-2 h-4 w-4" />
-          Export HTML
+          Export All
         </>
       )}
     </Button>

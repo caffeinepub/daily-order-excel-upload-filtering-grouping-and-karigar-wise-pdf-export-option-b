@@ -23,6 +23,7 @@ export default function DailyOrdersPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedFactory, setSelectedFactory] = useState<string | null>(null);
+  const [selectedKarigar, setSelectedKarigar] = useState<string | null>(null);
   
   // Mapping state
   const [isApplyingMapping, setIsApplyingMapping] = useState(false);
@@ -51,9 +52,14 @@ export default function DailyOrdersPage() {
       const sheet = mappingWorkbook.find(([name]) => name === sheetName);
       if (sheet) {
         const [, entries] = sheet;
-        entries.forEach(([design, karigar]) => {
+        entries.forEach(([design, data]) => {
           if (!lookup.has(design)) {
-            lookup.set(design, { karigar });
+            // Parse data: "karigar|genericName" or just "karigar"
+            const parts = data.split('|');
+            lookup.set(design, { 
+              karigar: parts[0],
+              genericName: parts[1] || undefined
+            });
           }
         });
       }
@@ -228,6 +234,7 @@ export default function DailyOrdersPage() {
     setMappingError(null);
     setSelectedOrderIds(new Set());
     setSelectedFactory(null);
+    setSelectedKarigar(null);
     setShowMappingPanel(false);
   };
 
@@ -534,6 +541,7 @@ export default function DailyOrdersPage() {
                     selectedFactory={selectedFactory}
                     ordersByFactory={ordersByFactory}
                     assignments={assignments}
+                    mappingLookup={mappingLookup}
                   />
                 </div>
               </div>
@@ -581,6 +589,8 @@ export default function DailyOrdersPage() {
                       selectedDate={selectedDate}
                       mappingLookup={mappingLookup}
                       showDownloadButtons={false}
+                      selectedKarigar={selectedKarigar}
+                      onSelectKarigar={setSelectedKarigar}
                     />
                   </CardContent>
                 </Card>

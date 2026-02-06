@@ -13,11 +13,24 @@ export interface ParsedKarigarMapping {
 }
 
 /**
- * Parse karigar mapping workbook with sheets "1", "2", "3"
+ * Parse karigar mapping workbook with sheets "1", "2", "3" (Excel) or extract from PDF
  * Uses header-based column detection to find design/product code, karigar, and optional Name columns
  * Sheets 1 and 3 take priority over sheet 2
  */
 export async function parseKarigarMapping(file: File): Promise<ParsedKarigarMapping> {
+  const fileType = file.type.toLowerCase();
+  const fileName = file.name.toLowerCase();
+  
+  // Check if it's a PDF file
+  if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+    return parsePdfMapping(file);
+  }
+  
+  // Otherwise parse as Excel
+  return parseExcelMapping(file);
+}
+
+async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -163,4 +176,123 @@ export async function parseKarigarMapping(file: File): Promise<ParsedKarigarMapp
 
     reader.readAsArrayBuffer(file);
   });
+}
+
+async function parsePdfMapping(file: File): Promise<ParsedKarigarMapping> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const data = e.target?.result;
+        if (!data) {
+          reject(new Error('Failed to read PDF file'));
+          return;
+        }
+
+        // For PDF parsing, we'll use a simple text extraction approach
+        // In a production environment, you might want to use a library like pdf.js
+        const text = await extractTextFromPdf(data as ArrayBuffer);
+        
+        // Parse the extracted text to find tabular data
+        const entries = parseTextToMapping(text);
+        
+        if (entries.size === 0) {
+          reject(new Error('No valid design-karigar mappings found in PDF. Please ensure the PDF contains a table with design code, generic name, and karigar columns.'));
+          return;
+        }
+
+        const result: ParsedKarigarMapping = {
+          '1': { entries }
+        };
+
+        resolve(result);
+      } catch (error: any) {
+        reject(new Error(`Failed to parse PDF file: ${error.message}`));
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error('Failed to read PDF file'));
+    };
+
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
+  // Simple text extraction - in production, use pdf.js or similar
+  const uint8Array = new Uint8Array(buffer);
+  const decoder = new TextDecoder('utf-8');
+  let text = decoder.decode(uint8Array);
+  
+  // Clean up PDF encoding artifacts
+  text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ');
+  
+  return text;
+}
+
+function parseTextToMapping(text: string): Map<string, KarigarMappingEntry> {
+  const entries = new Map<string, KarigarMappingEntry>();
+  const lines = text.split(/[\r\n]+/).filter(line => line.trim());
+  
+  // Try to find header row
+  let headerIndex = -1;
+  let designColIndex = -1;
+  let nameColIndex = -1;
+  let karigarColIndex = -1;
+  
+  for (let i = 0; i < Math.min(10, lines.length); i++) {
+    const line = lines[i].toLowerCase();
+    const parts = line.split(/[\t|,;]+/).map(p => p.trim());
+    
+    const designIdx = parts.findIndex(p => 
+      p.includes('design') || p.includes('product') || p.includes('code')
+    );
+    const nameIdx = parts.findIndex(p => 
+      p === 'name' || p.includes('generic') || p.includes('product name')
+    );
+    const karigarIdx = parts.findIndex(p => 
+      p.includes('karigar') || p.includes('artisan') || p.includes('worker')
+    );
+    
+    if (designIdx !== -1 && karigarIdx !== -1) {
+      headerIndex = i;
+      designColIndex = designIdx;
+      nameColIndex = nameIdx;
+      karigarColIndex = karigarIdx;
+      break;
+    }
+  }
+  
+  // If no header found, assume first 3 columns: design, name, karigar
+  if (headerIndex === -1) {
+    headerIndex = 0;
+    designColIndex = 0;
+    nameColIndex = 1;
+    karigarColIndex = 2;
+  }
+  
+  // Parse data rows
+  for (let i = headerIndex + 1; i < lines.length; i++) {
+    const line = lines[i];
+    const parts = line.split(/[\t|,;]+/).map(p => p.trim());
+    
+    if (parts.length < 2) continue;
+    
+    const design = parts[designColIndex] || '';
+    const genericName = nameColIndex !== -1 && parts[nameColIndex] ? parts[nameColIndex] : undefined;
+    const karigar = parts[karigarColIndex] || '';
+    
+    if (!design || !karigar) continue;
+    if (design.toLowerCase().includes('design') || karigar.toLowerCase().includes('karigar')) continue;
+    
+    entries.set(design, {
+      design,
+      karigar,
+      genericName,
+    });
+  }
+  
+  return entries;
 }
