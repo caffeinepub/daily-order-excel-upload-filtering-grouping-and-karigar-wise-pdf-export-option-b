@@ -1,34 +1,36 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T14:58:25.613Z",
-  "summary": "Diff implements a more robust Daily Order Upload parser (header-row detection, expanded header aliases, hidden/whitespace normalization, CSV handling) and adds UI state for parse warnings/errors vs save errors. However, due to truncation in the DailyOrdersPage upload handler, some REQ-51 acceptance-criteria behaviors (file input reset on parse failure; preserving parsed rows on save failure) cannot be confirmed from the provided diff excerpt.",
+  "generatedAt": "2026-02-06T17:06:34.483Z",
+  "summary": "Diff implements separator-robust design-code normalization and applies it to mapping decode + order enrichment, and adds richer diagnostics data computation. Evidence for React Query invalidation after mapping upload and for actually rendering the new diagnostics hint in the UI is not present in the provided diff excerpts (OrderListTab is truncated; mapping upload mutation not shown).",
   "missing_requirements": [
     {
-      "id": "REQ-51",
-      "requirement": "If parsing fails, the UI shows an English parsing error and does not crash; the file input is reset so the user can retry.",
-      "reason": "The provided DailyOrdersPage.tsx excerpt shows resetting the file input when the backend is not ready, but the parse-failure catch/finally path is not visible in the truncated diff, so it cannot be verified that the input is reset on parsing failure.",
+      "id": "REQ-61",
+      "requirement": "Ensure the decoded mapping lookup is rebuilt after a successful mapping upload and when the stored mapping changes, including React Query invalidation for both the stored mapping blob query and the derived decoded-mapping lookup query.",
+      "reason": "A derived lookup query is introduced (useKarigarMappingLookup) and keyed by mappingBlob URL, but the diff summary does not show the mapping upload mutation code and its onSuccess invalidations. The useQueries.ts excerpt shown contains no mapping-upload invalidation, so the requirement cannot be confirmed from the provided evidence.",
       "evidence": [
-        "frontend/src/features/daily-orders/DailyOrdersPage.tsx (truncated)"
+        "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+        "frontend/src/hooks/useQueries.ts (truncated; no mapping upload mutation/invalidation shown)"
       ]
     },
     {
-      "id": "REQ-51",
-      "requirement": "If parsing succeeds but storing to the backend fails, the parsed orders remain visible in the UI and an English 'saving failed' error is shown (separate from parsing errors).",
-      "reason": "State for saveError vs parseError is present and the code indicates a nested 'Try to save to backend' block, but the actual save failure handling and whether uploadedOrders remains populated is not visible in the truncated portion.",
+      "id": "REQ-63",
+      "requirement": "Improve Order List diagnostics when 'mapping loaded but no orders match' occurs by showing a small, English, user-readable hint that includes concrete debug counts and a small sample of normalized keys, shown only when mappingEntries > 0, matchedOrders == 0, totalOrders > 0.",
+      "reason": "The diff shows computing enhanced diagnostics values (distinctOrderDesigns, samples), but the OrderListTab rendering section is truncated, so it is not possible to verify that these diagnostics are actually displayed as a user-readable hint under the required condition.",
       "evidence": [
-        "frontend/src/features/daily-orders/DailyOrdersPage.tsx (truncated)"
+        "frontend/src/features/order-list/OrderListTab.tsx (truncated; shows diagnostics computation but not UI rendering)"
       ]
     }
   ],
   "hallucinated_features": [],
-  "confidence": 0.6,
+  "confidence": 0.62,
   "changed_files": [
     "frontend-file-summaries.txt",
-    "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-    "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
+    "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
+    "frontend/src/features/order-list/OrderListTab.tsx",
+    "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+    "frontend/src/hooks/useQueries.ts",
     "frontend/src/utils/textNormalize.ts",
-    "frontend/src/utils/userFacingError.ts",
     "project_state.json"
   ]
 }

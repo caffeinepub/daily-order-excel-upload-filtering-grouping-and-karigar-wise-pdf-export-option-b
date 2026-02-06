@@ -45,10 +45,16 @@ export default function KarigarMappingTab() {
       setUploadProgress(30);
 
       // Convert ParsedKarigarMapping (with Map) to KarigarMappingData (with Array)
+      // Include designNormalized in persisted format
       const mappingData: KarigarMappingData = {};
       for (const [sheetName, sheet] of Object.entries(parsedMapping)) {
         mappingData[sheetName] = {
-          entries: Array.from(sheet.entries.values()),
+          entries: Array.from(sheet.entries.values()).map(entry => ({
+            design: entry.design,
+            designNormalized: entry.designNormalized, // Persist normalized key
+            karigar: entry.karigar,
+            genericName: entry.genericName,
+          })),
         };
       }
 
@@ -94,144 +100,88 @@ export default function KarigarMappingTab() {
       {isError && error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div>
-              <p className="font-medium">Backend connection error</p>
-              <p className="text-sm">{getUserFacingError(error)}</p>
-            </div>
-          </AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* Actor loading state */}
-      {!isReady && !isError && (
-        <Alert>
+      {/* Parse error */}
+      {parseError && (
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Connecting to backend...</AlertDescription>
+          <AlertDescription className="whitespace-pre-wrap">{parseError}</AlertDescription>
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
-        {/* Upload Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Upload Mapping File
-            </CardTitle>
-            <CardDescription>
-              Upload Excel (.xlsx, .xls) or PDF file containing karigar mappings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Label htmlFor="mapping-upload" className="cursor-pointer">
-              <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 transition-colors hover:border-muted-foreground/50">
-                <div className="text-center">
-                  <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {isUploading ? 'Uploading...' : !isReady ? 'Connecting...' : 'Click to upload'}
-                  </p>
-                </div>
-              </div>
-              <Input
-                id="mapping-upload"
-                type="file"
-                accept=".xlsx,.xls,.pdf"
-                onChange={handleMappingUpload}
-                disabled={isUploading || !isReady}
-                className="hidden"
-              />
-            </Label>
+      {/* Save error */}
+      {saveError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{saveError}</AlertDescription>
+        </Alert>
+      )}
 
-            {isUploading && uploadProgress > 0 && (
-              <div className="space-y-2">
-                <Progress value={uploadProgress} className="h-2" />
-                <p className="text-xs text-center text-muted-foreground">
-                  {uploadProgress < 30 && 'Parsing file...'}
-                  {uploadProgress >= 30 && uploadProgress < 90 && 'Uploading to backend...'}
-                  {uploadProgress >= 90 && 'Saving...'}
-                </p>
-              </div>
-            )}
+      {/* Success message */}
+      {uploadSuccess && (
+        <Alert className="border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100">
+          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription>Karigar mapping uploaded successfully!</AlertDescription>
+        </Alert>
+      )}
 
-            {existingMapping && !isUploading && (
-              <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Mapping file uploaded
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload Mapping File</CardTitle>
+          <CardDescription>
+            Upload an Excel file (.xlsx) or PDF with sheets named "1", "2", or "3" containing design codes and karigar assignments
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="mapping-file">Select File</Label>
+            <Input
+              id="mapping-file"
+              type="file"
+              accept=".xlsx,.xls,.pdf"
+              onChange={handleMappingUpload}
+              disabled={isUploading || !isReady}
+            />
+          </div>
 
-        {/* Status and Info */}
-        <div className="space-y-6">
-          {uploadSuccess && (
-            <Alert className="border-green-500/50 bg-green-500/10">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-600">
-                Karigar mapping uploaded successfully! Orders in the Order List will now show enriched data.
-              </AlertDescription>
-            </Alert>
+          {isUploading && uploadProgress > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Uploading...</span>
+                <span className="font-medium">{Math.round(uploadProgress)}%</span>
+              </div>
+              <Progress value={uploadProgress} />
+            </div>
           )}
 
-          {parseError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{parseError}</AlertDescription>
-            </Alert>
+          {existingMapping && !isUploading && (
+            <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
+              <FileText className="h-4 w-4" />
+              <span>A mapping file is currently loaded</span>
+            </div>
           )}
+        </CardContent>
+      </Card>
 
-          {saveError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <div>
-                  <p className="font-medium">Failed to save mapping</p>
-                  <p className="text-sm">{saveError}</p>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>How It Works</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Upload a karigar mapping file (Excel or PDF) containing design codes, generic names, and karigar assignments.
-              </p>
-              <p>
-                The system will automatically match orders in the Order List with the mapping data based on design codes.
-              </p>
-              <p>
-                Matched orders will display the generic product name and assigned karigar, making it easier to organize and export orders.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Expected File Format</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium">Excel files:</p>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>Sheets named "1", "2", or "3"</li>
-                <li>Columns: Design Code, Generic Name, Karigar</li>
-                <li>Headers detected automatically</li>
-              </ul>
-              <p className="font-medium mt-3">PDF files:</p>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>Tabular data with design codes</li>
-                <li>Generic names and karigar assignments</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>File Format Requirements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>The mapping file should contain sheets named "1", "2", or "3" with the following columns:</p>
+          <ul className="list-inside list-disc space-y-1 pl-4">
+            <li><strong>Design Code / Product Code</strong> - The design identifier</li>
+            <li><strong>Karigar / Artisan</strong> - The karigar name</li>
+            <li><strong>Name / Generic Name</strong> (optional) - The generic product name</li>
+          </ul>
+          <p className="pt-2">
+            The parser will automatically detect these columns based on header names. Sheets 1 and 3 take priority over sheet 2.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

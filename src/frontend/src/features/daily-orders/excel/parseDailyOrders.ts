@@ -22,41 +22,46 @@ export interface ParseResult {
   warnings: ParseWarning[];
 }
 
-// Column name variants/aliases for robust matching
+// Expanded column name variants/aliases for robust matching
 const COLUMN_ALIASES = {
-  orderNo: ['order no', 'order no.', 'orderno', 'order number', 'order #', 'order', 'sr no', 'sr no.', 'serial no'],
-  design: ['design', 'design code', 'designcode', 'design no', 'design no.', 'item', 'item code'],
-  weight: ['weight', 'wt', 'wt.', 'net wt', 'net wt.', 'net weight', 'gross wt', 'gross weight', 'netwt'],
-  size: ['size', 'sz', 'sz.', 'dimension', 'dimensions', 'dim'],
-  quantity: ['quantity', 'qty', 'qty.', 'quan', 'quan.', 'count', 'pieces', 'pcs', 'nos'],
-  remarks: ['remarks', 'remark', "remark's", 'note', 'notes', 'comment', 'comments', 'description', 'desc', 'rmks'],
+  orderNo: ['order no', 'order no.', 'orderno', 'order number', 'order #', 'order', 'sr no', 'sr no.', 'serial no', 'sr', 's no'],
+  design: ['design', 'design code', 'designcode', 'design no', 'design no.', 'item', 'item code', 'product', 'product code'],
+  weight: ['weight', 'wt', 'wt.', 'net wt', 'net wt.', 'net weight', 'gross wt', 'gross weight', 'netwt', 'net', 'wgt', 'weight gms', 'weight gm'],
+  size: ['size', 'sz', 'sz.', 'dimension', 'dimensions', 'dim', 'dim.', 'measurement'],
+  quantity: ['quantity', 'qty', 'qty.', 'quan', 'quan.', 'count', 'pieces', 'pcs', 'nos', 'no', 'qnty', 'qnty.'],
+  remarks: ['remarks', 'remark', "remark's", 'note', 'notes', 'comment', 'comments', 'description', 'desc', 'rmks', 'rmk'],
 };
 
 // Score a row to determine if it's likely a header row
 function scoreHeaderRow(row: any[]): number {
   let score = 0;
-  const nonEmpty = row.filter(cell => cell != null && String(cell).trim()).length;
-  
+  const nonEmpty = row.filter((cell) => cell != null && String(cell).trim()).length;
+
   // Must have at least 3 non-empty cells
   if (nonEmpty < 3) return 0;
-  
-  // Check how many required columns we can find
+
+  // Check how many columns we can find (including optional ones)
   const foundColumns = {
-    orderNo: row.some(h => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.orderNo)),
-    design: row.some(h => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.design)),
-    weight: row.some(h => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.weight)),
-    size: row.some(h => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.size)),
-    quantity: row.some(h => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.quantity)),
-    remarks: row.some(h => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.remarks)),
+    orderNo: row.some((h) => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.orderNo)),
+    design: row.some((h) => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.design)),
+    weight: row.some((h) => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.weight)),
+    size: row.some((h) => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.size)),
+    quantity: row.some((h) => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.quantity)),
+    remarks: row.some((h) => matchesHeaderAlias(String(h || ''), COLUMN_ALIASES.remarks)),
   };
-  
-  // Score based on how many required columns found
+
+  // Score based on how many columns found (including optional)
   score += Object.values(foundColumns).filter(Boolean).length * 10;
-  
+
   // Bonus for having Order No and Design (most critical)
   if (foundColumns.orderNo) score += 20;
   if (foundColumns.design) score += 20;
-  
+
+  // Extra bonus for having optional columns (prefer rows with more complete data)
+  if (foundColumns.weight) score += 5;
+  if (foundColumns.size) score += 5;
+  if (foundColumns.quantity) score += 5;
+
   return score;
 }
 
@@ -64,9 +69,9 @@ function scoreHeaderRow(row: any[]): number {
 function detectHeaderRow(rows: any[][], maxRowsToScan = 20): number {
   let bestScore = 0;
   let bestRowIndex = 0;
-  
+
   const rowsToCheck = Math.min(rows.length, maxRowsToScan);
-  
+
   for (let i = 0; i < rowsToCheck; i++) {
     const score = scoreHeaderRow(rows[i]);
     if (score > bestScore) {
@@ -74,25 +79,25 @@ function detectHeaderRow(rows: any[][], maxRowsToScan = 20): number {
       bestRowIndex = i;
     }
   }
-  
+
   // If we found a row with at least 2 required columns, use it
   if (bestScore >= 20) {
     return bestRowIndex;
   }
-  
+
   // Otherwise default to first row
   return 0;
 }
 
 // Find column index by matching against aliases
 function findColumnIndex(headers: any[], aliases: string[]): number {
-  return headers.findIndex(h => matchesHeaderAlias(String(h || ''), aliases));
+  return headers.findIndex((h) => matchesHeaderAlias(String(h || ''), aliases));
 }
 
 // Extract and clean string value from cell
 function extractCellValue(cell: any): string {
   if (cell == null || cell === undefined) return '';
-  
+
   // Convert to string and normalize
   const strValue = String(cell);
   return normalizeCellValue(strValue);
@@ -127,28 +132,28 @@ function parseCSVLine(line: string): string[] {
 }
 
 function parseCSV(text: string): any[][] {
-  const lines = text.split(/\r?\n/).filter(line => line.trim());
-  return lines.map(line => parseCSVLine(line));
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  return lines.map((line) => parseCSVLine(line));
 }
 
 function parseExcel(buffer: ArrayBuffer): any[][] {
   if (!window.XLSX) {
     throw new Error('XLSX library not loaded');
   }
-  
+
   const workbook = window.XLSX.read(buffer, { type: 'array' });
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
-  
+
   // Convert to array of arrays with raw: false to get formatted strings
   // but use defval: null to distinguish empty cells
-  const data = window.XLSX.utils.sheet_to_json<any[]>(worksheet, { 
-    header: 1, 
+  const data = window.XLSX.utils.sheet_to_json<any[]>(worksheet, {
+    header: 1,
     raw: false,
     defval: null,
-    blankrows: false
+    blankrows: false,
   });
-  
+
   return data as any[][];
 }
 
@@ -156,7 +161,7 @@ function parseExcel(buffer: ArrayBuffer): any[][] {
 function detectFileType(file: File): 'csv' | 'xlsx' | 'xls' | 'unsupported' {
   const fileName = file.name.toLowerCase();
   const mimeType = file.type.toLowerCase();
-  
+
   // Check extension first (case-insensitive)
   if (fileName.endsWith('.csv')) {
     return 'csv';
@@ -167,7 +172,7 @@ function detectFileType(file: File): 'csv' | 'xlsx' | 'xls' | 'unsupported' {
   if (fileName.endsWith('.xls')) {
     return 'xls';
   }
-  
+
   // Fallback to MIME type
   if (mimeType === 'text/csv' || mimeType === 'application/csv') {
     return 'csv';
@@ -178,14 +183,14 @@ function detectFileType(file: File): 'csv' | 'xlsx' | 'xls' | 'unsupported' {
   if (mimeType === 'application/vnd.ms-excel') {
     return 'xls';
   }
-  
+
   return 'unsupported';
 }
 
 export async function parseDailyOrders(file: File): Promise<ParseResult> {
   return new Promise((resolve, reject) => {
     const fileType = detectFileType(file);
-    
+
     if (fileType === 'unsupported') {
       reject(new Error('Unsupported file format. Please upload .csv, .xlsx, or .xls files.'));
       return;
@@ -222,7 +227,7 @@ export async function parseDailyOrders(file: File): Promise<ParseResult> {
         // Detect the header row
         const headerRowIndex = detectHeaderRow(rows);
         const headers = rows[headerRowIndex];
-        
+
         // Find column indices using aliases
         const columnIndices = {
           orderNo: findColumnIndex(headers, COLUMN_ALIASES.orderNo),
@@ -242,20 +247,20 @@ export async function parseDailyOrders(file: File): Promise<ParseResult> {
           const missingCritical: string[] = [];
           if (columnIndices.orderNo === -1) missingCritical.push('Order No');
           if (columnIndices.design === -1) missingCritical.push('Design');
-          
+
           const errorMessage = [
             `Cannot parse file: Missing critical columns: ${missingCritical.join(', ')}.`,
             `\nDetected headers in row ${headerRowIndex + 1}: ${detectedHeaders}`,
             `\nPlease ensure your file contains at minimum "Order No" and "Design" columns.`,
           ].join('');
-          
+
           reject(new Error(errorMessage));
           return;
         }
 
         // Build warnings
         const warnings: ParseWarning[] = [];
-        
+
         // Warning for non-first header row
         if (headerRowIndex > 0) {
           warnings.push({
@@ -264,7 +269,7 @@ export async function parseDailyOrders(file: File): Promise<ParseResult> {
             message: `Headers detected on row ${headerRowIndex + 1} (not the first row). Rows 1-${headerRowIndex} were skipped.`,
           });
         }
-        
+
         // Warning for missing optional columns
         const missingOptional: string[] = [];
         if (columnIndices.weight === -1) missingOptional.push('Weight');
@@ -277,15 +282,13 @@ export async function parseDailyOrders(file: File): Promise<ParseResult> {
             .filter((h: any) => h != null && String(h).trim())
             .map((h: any) => String(h).trim())
             .join(', ');
-          
+
           warnings.push({
             type: 'missing-columns',
             missingColumns: missingOptional,
-            detectedHeaders: headers
-              .filter((h: any) => h != null && String(h).trim())
-              .map((h: any) => String(h).trim()),
+            detectedHeaders: headers.filter((h: any) => h != null && String(h).trim()).map((h: any) => String(h).trim()),
             headerRowIndex: headerRowIndex + 1,
-            message: `Optional columns not found: ${missingOptional.join(', ')}. These fields will be empty. Detected headers: ${detectedHeadersList}`,
+            message: `Optional columns not found: ${missingOptional.join(', ')}. These fields will be empty.\nHeader row used: Row ${headerRowIndex + 1}\nDetected headers: ${detectedHeadersList}`,
           });
         }
 

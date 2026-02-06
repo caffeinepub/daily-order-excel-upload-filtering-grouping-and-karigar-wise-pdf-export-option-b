@@ -1,66 +1,89 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T14:58:25.617Z",
+  "generatedAt": "2026-02-06T17:06:34.488Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 3,
+    "total": 5,
+    "implemented": 5,
     "items": [
       {
-        "id": "REQ-49",
-        "summary": "Improve the Daily Order Upload file parser so it reliably extracts non-empty values for all required fields (Order No, Design, Weight, Size, Quantity, Remarks) from common OrderList Excel/CSV formats, including when there are extra title rows above the real header row, when headers use common variations (e.g., different casing/punctuation, \"Remark's\"), and when there are hidden/unusual whitespace characters.",
+        "id": "REQ-59",
+        "summary": "Fix design-code matching so Order List enrichment successfully maps orders to karigar/generic name even when design codes differ only by separators (e.g., hyphens, underscores, slashes) or formatting.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "frontend/src/utils/textNormalize.ts"
+          "frontend/src/utils/textNormalize.ts",
+          "frontend/src/features/order-list/OrderListTab.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
+          "frontend/src/utils/textNormalize.ts",
+          "frontend/src/features/order-list/OrderListTab.tsx"
+        ]
+      },
+      {
+        "id": "REQ-60",
+        "summary": "Update canonical design-code normalization used for matching so it is robust to common separator differences by producing the same lookup key for equivalent design codes across uploads (orders and mapping).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/utils/textNormalize.ts",
+          "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
+        ],
+        "matchedFiles": [
           "frontend/src/utils/textNormalize.ts"
         ]
       },
       {
-        "id": "REQ-50",
-        "summary": "Expose Daily Order Upload parsing warnings and detected-header information to the user in the Daily Order Upload UI (in English) instead of only logging warnings to the console, so the user can understand when the file is missing optional columns or when a non-first header row was used.",
+        "id": "REQ-61",
+        "summary": "Ensure the decoded mapping lookup is rebuilt after a successful mapping upload and when the stored mapping changes, so Order List does not keep using a stale lookup.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/features/order-list/useKarigarMappingLookup.ts"
         ],
         "matchedFiles": [
-          "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/features/order-list/useKarigarMappingLookup.ts"
         ]
       },
       {
-        "id": "REQ-51",
-        "summary": "Ensure the Daily Order Upload flow does not crash or abort after parser changes: successful parses must still populate the on-page table and attempt to save to the backend; failures must show a clear English error without losing already-parsed rows when only the save step fails.",
+        "id": "REQ-62",
+        "summary": "Make mapping lookup construction resilient to older saved mapping blobs by recomputing the normalized lookup key from the stored design value using the current normalization rules (do not rely exclusively on a previously persisted designNormalized value).",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "frontend/src/utils/userFacingError.ts"
+          "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+          "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts"
         ],
         "matchedFiles": [
-          "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-          "frontend/src/utils/userFacingError.ts"
+          "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+          "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts"
+        ]
+      },
+      {
+        "id": "REQ-63",
+        "summary": "Improve Order List diagnostics when 'mapping loaded but no orders match' occurs by showing a small, English, user-readable hint that includes concrete debug counts (e.g., number of distinct normalized order design keys and a small sample) to help confirm whether normalization/matching is working.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/features/order-list/OrderListTab.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/features/order-list/OrderListTab.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
     "build-request.json",
-    "caffeine.lock.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-    "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
+    "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
+    "frontend/src/features/order-list/OrderListTab.tsx",
+    "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+    "frontend/src/hooks/useQueries.ts",
     "frontend/src/utils/textNormalize.ts",
-    "frontend/src/utils/userFacingError.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

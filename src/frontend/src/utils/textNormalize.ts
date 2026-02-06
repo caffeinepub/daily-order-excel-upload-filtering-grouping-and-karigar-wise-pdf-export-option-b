@@ -71,10 +71,18 @@ export function normalizeHeader(header: string | null | undefined): string {
 }
 
 /**
- * Normalize a design code for lookup matching:
- * - Apply cell normalization
+ * Canonical design code normalization for lookup matching:
+ * - Apply cell normalization (removes hidden chars, normalizes dashes/quotes)
  * - Convert to lowercase for case-insensitive matching
- * - Preserve original structure but clean hidden chars
+ * - Remove ALL non-alphanumeric characters (including hyphens, underscores, slashes, spaces, etc.)
+ * - This creates a consistent key for matching regardless of formatting differences
+ * 
+ * Examples:
+ * - "AB-12" → "ab12"
+ * - "AB/12" → "ab12"
+ * - "AB_12" → "ab12"
+ * - "AB 12" → "ab12"
+ * - "AB12" → "ab12"
  */
 export function normalizeDesignCode(design: string | null | undefined): string {
   if (!design) return '';
@@ -83,6 +91,10 @@ export function normalizeDesignCode(design: string | null | undefined): string {
   
   // Convert to lowercase for case-insensitive matching
   normalized = normalized.toLowerCase();
+  
+  // Remove ALL non-alphanumeric characters (including hyphens, underscores, slashes, spaces, etc.)
+  // This ensures codes differing only by separators match to the same key
+  normalized = normalized.replace(/[^a-z0-9]/g, '');
   
   return normalized;
 }

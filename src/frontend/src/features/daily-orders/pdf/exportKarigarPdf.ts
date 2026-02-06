@@ -1,4 +1,5 @@
 import type { ParsedOrder } from '../excel/parseDailyOrders';
+import { normalizeDesignCode } from '@/utils/textNormalize';
 
 export async function exportKarigarPdf(
   date: string, 
@@ -70,7 +71,9 @@ export async function exportKarigarPdf(
     </thead>
     <tbody>
       ${sortedOrders.map((order, index) => {
-        const mapping = mappingLookup.get(order.design);
+        // Normalize design code before lookup
+        const normalizedDesign = normalizeDesignCode(order.design);
+        const mapping = mappingLookup.get(normalizedDesign);
         const genericName = mapping?.genericName || '-';
         return `
         <tr>

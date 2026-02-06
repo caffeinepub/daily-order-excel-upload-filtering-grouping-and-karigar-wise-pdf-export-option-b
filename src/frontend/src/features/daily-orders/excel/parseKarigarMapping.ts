@@ -33,6 +33,17 @@ export async function parseKarigarMapping(file: File): Promise<ParsedKarigarMapp
   return parseExcelMapping(file);
 }
 
+/**
+ * Check if a value looks like a numeric ratio (e.g., "3+1", "2:1", "5/2")
+ * These should not be treated as generic names
+ */
+function looksLikeNumericRatio(value: string): boolean {
+  if (!value) return false;
+  const trimmed = value.trim();
+  // Match patterns like: "3+1", "2:1", "5/2", "10-5", or just numbers
+  return /^[\d\s+\-:\/]+$/.test(trimmed);
+}
+
 async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -56,6 +67,7 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
         const result: ParsedKarigarMapping = {};
         const sheetsToRead = ['1', '3', '2']; // Priority order
         let foundAnySheet = false;
+        const sheetErrors: string[] = [];
 
         for (const sheetName of sheetsToRead) {
           if (!workbook.SheetNames.includes(sheetName)) {
@@ -71,7 +83,10 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
             blankrows: false,
           });
 
-          if (rows.length === 0) continue;
+          if (rows.length === 0) {
+            sheetErrors.push(`Sheet "${sheetName}" is empty`);
+            continue;
+          }
 
           // Find header row and column indices
           let headerRowIndex = -1;
@@ -79,25 +94,31 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
           let karigarColIndex = -1;
           let nameColIndex = -1;
 
-          // Search first few rows for headers
-          for (let i = 0; i < Math.min(5, rows.length); i++) {
+          // Expanded aliases for better detection
+          const designAliases = ['design', 'product', 'code', 'design code', 'product code', 'item', 'item code', 'style'];
+          const karigarAliases = ['karigar', 'artisan', 'worker', 'craftsman', 'maker'];
+          const nameAliases = ['name', 'product name', 'generic', 'generic name', 'item name', 'description'];
+
+          // Search first 10 rows for headers (support title rows)
+          for (let i = 0; i < Math.min(10, rows.length); i++) {
             const row = rows[i] as any[];
-            if (!row) continue;
+            if (!row || row.length < 2) continue;
 
             // Look for design/product code column
             const designIndex = row.findIndex((cell) =>
-              matchesHeaderAlias(String(cell || ''), ['design', 'product', 'code', 'design code', 'product code'])
+              matchesHeaderAlias(String(cell || ''), designAliases)
             );
 
             // Look for karigar column
             const karigarIndex = row.findIndex((cell) =>
-              matchesHeaderAlias(String(cell || ''), ['karigar', 'artisan', 'worker'])
+              matchesHeaderAlias(String(cell || ''), karigarAliases)
             );
 
-            // Look for name column (generic product name)
-            const nameIndex = row.findIndex((cell) =>
-              matchesHeaderAlias(String(cell || ''), ['name', 'product name', 'generic', 'generic name'])
-            );
+            // Look for name column (generic product name) - but avoid numeric ratios
+            const nameIndex = row.findIndex((cell) => {
+              const cellStr = String(cell || '');
+              return matchesHeaderAlias(cellStr, nameAliases) && !looksLikeNumericRatio(cellStr);
+            });
 
             if (designIndex !== -1 && karigarIndex !== -1) {
               headerRowIndex = i;
@@ -108,18 +129,15 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
             }
           }
 
-          // If no headers found, try positional (first two columns)
-          if (headerRowIndex === -1) {
-            headerRowIndex = 0;
-            designColIndex = 0;
-            karigarColIndex = 1;
-            // Try to find Name column in first row
-            const firstRow = rows[0] as any[];
-            if (firstRow) {
-              nameColIndex = firstRow.findIndex((cell) =>
-                matchesHeaderAlias(String(cell || ''), ['name', 'product name', 'generic'])
-              );
-            }
+          // If no headers found with confidence, reject this sheet
+          if (headerRowIndex === -1 || designColIndex === -1 || karigarColIndex === -1) {
+            const detectedHeaders = rows.length > 0 ? (rows[0] as any[]).slice(0, 5).map(c => String(c || '')).join(', ') : 'none';
+            sheetErrors.push(
+              `Could not find Design Code and Karigar columns in sheet "${sheetName}". ` +
+              `Detected headers: ${detectedHeaders}. ` +
+              `Please ensure the sheet has columns for design/product code and karigar/artisan.`
+            );
+            continue;
           }
 
           const sheetEntries = new Map<string, KarigarMappingEntry>();
@@ -132,14 +150,20 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
             // Apply normalization to all cell values
             const design = normalizeCellValue(row[designColIndex]);
             const karigar = normalizeCellValue(row[karigarColIndex]);
-            const genericName = nameColIndex !== -1 ? normalizeCellValue(row[nameColIndex]) : undefined;
+            const genericNameRaw = nameColIndex !== -1 && nameColIndex < row.length ? normalizeCellValue(row[nameColIndex]) : undefined;
+            
+            // Filter out numeric ratios from generic name
+            const genericName = genericNameRaw && !looksLikeNumericRatio(genericNameRaw) ? genericNameRaw : undefined;
 
             // Skip empty or header-like rows
             if (!design || !karigar) continue;
             if (normalizeHeader(design).includes('design') || normalizeHeader(karigar).includes('karigar')) continue;
 
-            // Normalize design code for lookup
+            // Normalize design code for lookup using canonical normalization
             const designNormalized = normalizeDesignCode(design);
+            
+            // Skip if normalized design is empty
+            if (!designNormalized) continue;
 
             const entry: KarigarMappingEntry = {
               design, // Keep original for display
@@ -154,6 +178,8 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
 
           if (sheetEntries.size > 0) {
             result[sheetName] = { entries: sheetEntries };
+          } else {
+            sheetErrors.push(`Sheet "${sheetName}" contains no valid design-karigar mappings after parsing`);
           }
         }
 
@@ -164,7 +190,11 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
 
         const totalEntries = Object.values(result).reduce((sum, sheet) => sum + sheet.entries.size, 0);
         if (totalEntries === 0) {
-          reject(new Error('No valid design-karigar mappings found in sheets "1", "2", or "3". Please ensure the sheets contain design/product code and karigar columns.'));
+          const errorDetails = sheetErrors.length > 0 ? '\n\n' + sheetErrors.join('\n') : '';
+          reject(new Error(
+            `No valid design-karigar mappings found in sheets "1", "2", or "3". ` +
+            `Please ensure the sheets contain design/product code and karigar columns with data.${errorDetails}`
+          ));
           return;
         }
 
@@ -246,18 +276,22 @@ function parseTextToMapping(text: string): Map<string, KarigarMappingEntry> {
   let nameColIndex = -1;
   let karigarColIndex = -1;
   
+  const designAliases = ['design', 'product', 'code'];
+  const nameAliases = ['name', 'generic', 'product name'];
+  const karigarAliases = ['karigar', 'artisan', 'worker'];
+  
   for (let i = 0; i < Math.min(10, lines.length); i++) {
     const line = lines[i];
     const parts = line.split(/[\t|,;]+/).map(p => p.trim());
     
     const designIdx = parts.findIndex(p => 
-      matchesHeaderAlias(p, ['design', 'product', 'code'])
+      matchesHeaderAlias(p, designAliases)
     );
     const nameIdx = parts.findIndex(p => 
-      matchesHeaderAlias(p, ['name', 'generic', 'product name'])
+      matchesHeaderAlias(p, nameAliases) && !looksLikeNumericRatio(p)
     );
     const karigarIdx = parts.findIndex(p => 
-      matchesHeaderAlias(p, ['karigar', 'artisan', 'worker'])
+      matchesHeaderAlias(p, karigarAliases)
     );
     
     if (designIdx !== -1 && karigarIdx !== -1) {
@@ -285,13 +319,15 @@ function parseTextToMapping(text: string): Map<string, KarigarMappingEntry> {
     if (parts.length < 2) continue;
     
     const design = normalizeCellValue(parts[designColIndex]);
-    const genericName = nameColIndex !== -1 && parts[nameColIndex] ? normalizeCellValue(parts[nameColIndex]) : undefined;
+    const genericNameRaw = nameColIndex !== -1 && parts[nameColIndex] ? normalizeCellValue(parts[nameColIndex]) : undefined;
+    const genericName = genericNameRaw && !looksLikeNumericRatio(genericNameRaw) ? genericNameRaw : undefined;
     const karigar = normalizeCellValue(parts[karigarColIndex]);
     
     if (!design || !karigar) continue;
     if (normalizeHeader(design).includes('design') || normalizeHeader(karigar).includes('karigar')) continue;
     
     const designNormalized = normalizeDesignCode(design);
+    if (!designNormalized) continue;
     
     entries.set(designNormalized, {
       design,

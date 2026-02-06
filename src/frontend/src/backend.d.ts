@@ -22,6 +22,11 @@ export interface DailyOrder {
     quantity: string;
     remarks: string;
 }
+export interface KarigarMapping {
+    karigar: string;
+    designPattern: string;
+    factory?: string;
+}
 export type Date_ = string;
 export interface KarigarAssignment {
     karigar: string;
@@ -44,10 +49,12 @@ export interface backendInterface {
     getDailyOrders(date: Date_): Promise<Array<DailyOrder>>;
     getKarigarAssignments(date: Date_): Promise<Array<KarigarAssignment>>;
     getKarigarMappingWorkbook(): Promise<ExternalBlob | null>;
+    getKarigarMappings(): Promise<Array<[string, KarigarMapping]>>;
     getOrdersByKarigar(date: Date_, karigar: string): Promise<Array<DailyOrder>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveKarigarMappingWorkbook(blob: ExternalBlob): Promise<void>;
     storeDailyOrders(date: Date_, orders: Array<DailyOrder>): Promise<void>;
+    storeKarigarMappings(mappings: Array<KarigarMapping>): Promise<void>;
 }

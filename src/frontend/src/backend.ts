@@ -97,6 +97,11 @@ export interface DailyOrder {
     quantity: string;
     remarks: string;
 }
+export interface KarigarMapping {
+    karigar: string;
+    designPattern: string;
+    factory?: string;
+}
 export type Date_ = string;
 export interface KarigarAssignment {
     karigar: string;
@@ -137,14 +142,16 @@ export interface backendInterface {
     getDailyOrders(date: Date_): Promise<Array<DailyOrder>>;
     getKarigarAssignments(date: Date_): Promise<Array<KarigarAssignment>>;
     getKarigarMappingWorkbook(): Promise<ExternalBlob | null>;
+    getKarigarMappings(): Promise<Array<[string, KarigarMapping]>>;
     getOrdersByKarigar(date: Date_, karigar: string): Promise<Array<DailyOrder>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveKarigarMappingWorkbook(blob: ExternalBlob): Promise<void>;
     storeDailyOrders(date: Date_, orders: Array<DailyOrder>): Promise<void>;
+    storeKarigarMappings(mappings: Array<KarigarMapping>): Promise<void>;
 }
-import type { ExternalBlob as _ExternalBlob, KarigarAssignment as _KarigarAssignment, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
+import type { ExternalBlob as _ExternalBlob, KarigarAssignment as _KarigarAssignment, KarigarMapping as _KarigarMapping, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _caffeineStorageBlobIsLive(arg0: Uint8Array): Promise<boolean> {
@@ -343,6 +350,20 @@ export class Backend implements backendInterface {
             return from_candid_opt_n18(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getKarigarMappings(): Promise<Array<[string, KarigarMapping]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getKarigarMappings();
+                return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getKarigarMappings();
+            return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getOrdersByKarigar(arg0: Date_, arg1: string): Promise<Array<DailyOrder>> {
         if (this.processError) {
             try {
@@ -402,14 +423,14 @@ export class Backend implements backendInterface {
     async saveKarigarMappingWorkbook(arg0: ExternalBlob): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.saveKarigarMappingWorkbook(await to_candid_ExternalBlob_n20(this._uploadFile, this._downloadFile, arg0));
+                const result = await this.actor.saveKarigarMappingWorkbook(await to_candid_ExternalBlob_n24(this._uploadFile, this._downloadFile, arg0));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.saveKarigarMappingWorkbook(await to_candid_ExternalBlob_n20(this._uploadFile, this._downloadFile, arg0));
+            const result = await this.actor.saveKarigarMappingWorkbook(await to_candid_ExternalBlob_n24(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
@@ -427,12 +448,29 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async storeKarigarMappings(arg0: Array<KarigarMapping>): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.storeKarigarMappings(to_candid_vec_n25(this._uploadFile, this._downloadFile, arg0));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.storeKarigarMappings(to_candid_vec_n25(this._uploadFile, this._downloadFile, arg0));
+            return result;
+        }
+    }
 }
 async function from_candid_ExternalBlob_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ExternalBlob): Promise<ExternalBlob> {
     return await _downloadFile(value);
 }
 function from_candid_KarigarAssignment_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _KarigarAssignment): KarigarAssignment {
     return from_candid_record_n16(_uploadFile, _downloadFile, value);
+}
+function from_candid_KarigarMapping_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _KarigarMapping): KarigarMapping {
+    return from_candid_record_n23(_uploadFile, _downloadFile, value);
 }
 function from_candid_UserRole_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
     return from_candid_variant_n13(_uploadFile, _downloadFile, value);
@@ -470,6 +508,21 @@ function from_candid_record_n16(_uploadFile: (file: ExternalBlob) => Promise<Uin
         factory: record_opt_to_undefined(from_candid_opt_n17(_uploadFile, _downloadFile, value.factory))
     };
 }
+function from_candid_record_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    karigar: string;
+    designPattern: string;
+    factory: [] | [string];
+}): {
+    karigar: string;
+    designPattern: string;
+    factory?: string;
+} {
+    return {
+        karigar: value.karigar,
+        designPattern: value.designPattern,
+        factory: record_opt_to_undefined(from_candid_opt_n17(_uploadFile, _downloadFile, value.factory))
+    };
+}
 function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     success: [] | [boolean];
     topped_up_amount: [] | [bigint];
@@ -481,6 +534,12 @@ function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint
         success: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.success)),
         topped_up_amount: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.topped_up_amount))
     };
+}
+function from_candid_tuple_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [string, _KarigarMapping]): [string, KarigarMapping] {
+    return [
+        value[0],
+        from_candid_KarigarMapping_n22(_uploadFile, _downloadFile, value[1])
+    ];
 }
 function from_candid_variant_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     admin: null;
@@ -494,8 +553,14 @@ function from_candid_variant_n13(_uploadFile: (file: ExternalBlob) => Promise<Ui
 function from_candid_vec_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_KarigarAssignment>): Array<KarigarAssignment> {
     return value.map((x)=>from_candid_KarigarAssignment_n15(_uploadFile, _downloadFile, x));
 }
-async function to_candid_ExternalBlob_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob): Promise<_ExternalBlob> {
+function from_candid_vec_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<[string, _KarigarMapping]>): Array<[string, KarigarMapping]> {
+    return value.map((x)=>from_candid_tuple_n21(_uploadFile, _downloadFile, x));
+}
+async function to_candid_ExternalBlob_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob): Promise<_ExternalBlob> {
     return await _uploadFile(value);
+}
+function to_candid_KarigarMapping_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: KarigarMapping): _KarigarMapping {
+    return to_candid_record_n27(_uploadFile, _downloadFile, value);
 }
 function to_candid_UserRole_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
     return to_candid_variant_n9(_uploadFile, _downloadFile, value);
@@ -508,6 +573,21 @@ function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Arra
 }
 function to_candid_opt_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: string | null): [] | [string] {
     return value === null ? candid_none() : candid_some(value);
+}
+function to_candid_record_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    karigar: string;
+    designPattern: string;
+    factory?: string;
+}): {
+    karigar: string;
+    designPattern: string;
+    factory: [] | [string];
+} {
+    return {
+        karigar: value.karigar,
+        designPattern: value.designPattern,
+        factory: value.factory ? candid_some(value.factory) : candid_none()
+    };
 }
 function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     proposed_top_up_amount?: bigint;
@@ -532,6 +612,9 @@ function to_candid_variant_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8
     } : value == UserRole.guest ? {
         guest: null
     } : value;
+}
+function to_candid_vec_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<KarigarMapping>): Array<_KarigarMapping> {
+    return value.map((x)=>to_candid_KarigarMapping_n26(_uploadFile, _downloadFile, x));
 }
 export interface CreateActorOptions {
     agent?: Agent;

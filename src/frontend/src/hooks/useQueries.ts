@@ -143,7 +143,9 @@ export function useSaveKarigarMappingWorkbook() {
       return actor.saveKarigarMappingWorkbook(blob);
     },
     onSuccess: () => {
+      // Invalidate both the stored mapping blob and the derived decoded lookup
       queryClient.invalidateQueries({ queryKey: ['karigarMappingWorkbook'] });
+      queryClient.invalidateQueries({ queryKey: ['decodedMappingLookup'] });
     },
   });
 }

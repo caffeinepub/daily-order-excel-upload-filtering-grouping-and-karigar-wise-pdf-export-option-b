@@ -11,8 +11,6 @@ import AccessControl "authorization/access-control";
 import Storage "blob-storage/Storage";
 import MixinStorage "blob-storage/Mixin";
 
-// Apply data migration on upgrades
-
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -30,6 +28,12 @@ actor {
     remarks : Text;
   };
 
+  public type KarigarMapping = {
+    designPattern : Text;
+    karigar : Text;
+    factory : ?Text;
+  };
+
   type KarigarAssignment = {
     orderId : Text;
     karigar : Text;
@@ -41,10 +45,10 @@ actor {
   };
 
   let dailyOrders = Map.empty<Date, List.List<DailyOrder>>();
+  let karigarMappings = Map.empty<Text, KarigarMapping>();
   let karigarAssignments = Map.empty<Date, Map.Map<Text, KarigarAssignment>>();
   let userProfiles = Map.empty<Principal, UserProfile>();
 
-  // Store only the reference to the karigar mapping workbook blob
   var karigarMappingWorkbook : ?Storage.ExternalBlob = null;
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
@@ -69,10 +73,25 @@ actor {
   };
 
   public shared ({ caller }) func storeDailyOrders(date : Date, orders : [DailyOrder]) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can store daily orders");
+    };
     dailyOrders.add(date, List.fromArray<DailyOrder>(orders));
   };
 
+  public shared ({ caller }) func storeKarigarMappings(mappings : [KarigarMapping]) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can store karigar mappings");
+    };
+    for (mapping in mappings.values()) {
+      karigarMappings.add(mapping.designPattern, mapping);
+    };
+  };
+
   public shared ({ caller }) func assignKarigar(date : Date, orderIds : [Text], karigar : Text, factory : ?Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can assign karigars");
+    };
     let assignmentsForDate = switch (karigarAssignments.get(date)) {
       case (null) { Map.empty<Text, KarigarAssignment>() };
       case (?existing) { existing };
@@ -91,6 +110,9 @@ actor {
   };
 
   public query ({ caller }) func getKarigarAssignments(date : Date) : async [KarigarAssignment] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view karigar assignments");
+    };
     let assignments = switch (karigarAssignments.get(date)) {
       case (null) { Map.empty<Text, KarigarAssignment>() };
       case (?existing) { existing };
@@ -99,6 +121,9 @@ actor {
   };
 
   public query ({ caller }) func getDailyOrders(date : Date) : async [DailyOrder] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view daily orders");
+    };
     switch (dailyOrders.get(date)) {
       case (null) { [] };
       case (?orders) { orders.toArray() };
@@ -110,6 +135,9 @@ actor {
   };
 
   public query ({ caller }) func getOrdersByKarigar(date : Date, karigar : Text) : async [DailyOrder] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view orders by karigar");
+    };
     let assignmentsForDate = switch (karigarAssignments.get(date)) {
       case (null) { Map.empty<Text, KarigarAssignment>() };
       case (?existing) { existing };
@@ -138,10 +166,24 @@ actor {
   };
 
   public shared ({ caller }) func saveKarigarMappingWorkbook(blob : Storage.ExternalBlob) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can save karigar mapping workbook");
+    };
     karigarMappingWorkbook := ?blob;
   };
 
   public query ({ caller }) func getKarigarMappingWorkbook() : async ?Storage.ExternalBlob {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view karigar mapping workbook");
+    };
     karigarMappingWorkbook;
   };
+
+  public query ({ caller }) func getKarigarMappings() : async [(Text, KarigarMapping)] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view karigar mappings");
+    };
+    karigarMappings.toArray();
+  };
 };
+

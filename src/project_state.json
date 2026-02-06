@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 31,
+  "projectStateVersion": 37,
   "summary": "Order management app (Option B) where the user uploads a cumulative OrderList (treated as today/selected date’s orders) and uses a standard (not daily) karigar mapping document (Excel or PDF) to auto-enrich orders with Generic Name + Karigar Name by Design code, then view orders karigar-wise on the Order List page with search/sort and export actions; the Daily Order Upload page should not show factory tabs and should show upload row count plus searchable/sortable extracted columns; data must persist across refreshes, within an app layout titled “Shree I Jewellery Order Management System” (default opens to Order List) without any separate welcome screen or name entry/upload field.",
   "architectural_notes": [
     "Portal automation/scraping is out of scope; orders will be provided via manual Excel upload (Option B).",
@@ -24,7 +24,7 @@
     "Order List still does not display the merged/enriched results after Daily Order Upload + Karigar Mapping upload (combined data not showing in the Order List view).",
     "Daily Order Upload Excel parsing currently extracts only Order No and Design, but fails to extract required fields Weight, Size, Quantity, and Remark.",
     "Draft/live deployments appear to show no changes for multiple versions (possible caching or deployment pipeline issue), making it hard to verify fixes to Excel extraction.",
-    "Order data extraction quality is still poor in both draft and live builds (per user screenshots), indicating remaining issues in the OrderList/Daily Orders parsing and field extraction."
+    "Order List shows \"A mapping is loaded but no orders match\" even after verifying/rectifying design codes and re-uploading the mapping file; indicates a persistent design-code normalization/matching or lookup-application bug."
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -377,6 +377,102 @@
       "title": "Ensure the Daily Order Upload flow does not crash or abort after parser changes: successful parses must still populate the on-page table and attempt to save to the backend; failures must show a clear English error without losing already-parsed rows when only the save step fails.",
       "reqIds": [
         "REQ-51"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-design-code-matching-between-daily-orders-and-karigar-mapping-so-uploaded-mapping-entries-reliably-enrich-orders-generic-name-karigar-name-instead-of-producing-mostly-all-unmapped-results",
+      "title": "Fix Design-code matching between Daily Orders and Karigar Mapping so uploaded mapping entries reliably enrich orders (Generic Name + Karigar Name) instead of producing mostly/all “Unmapped” results.",
+      "reqIds": [
+        "REQ-52"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-karigar-mapping-upload-pipeline-to-persist-a-canonical-normalized-design-key-alongside-each-mapping-entry-and-ensure-that-the-saved-mapping-format-contains-all-fields-required-for-reliable-future-lookups-after-refresh-reopen",
+      "title": "Update the Karigar Mapping upload pipeline to persist a canonical normalized design key alongside each mapping entry and ensure that the saved mapping format contains all fields required for reliable future lookups after refresh/reopen.",
+      "reqIds": [
+        "REQ-53"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-improve-the-karigar-mapping-parser-to-detect-the-correct-columns-and-avoid-mis-reading-non-mapping-columns-as-generic-name-or-karigar-name-when-parsing-excel-pdf-mapping-files",
+      "title": "Improve the karigar mapping parser to detect the correct columns and avoid mis-reading non-mapping columns as Generic Name or Karigar Name when parsing Excel/PDF mapping files.",
+      "reqIds": [
+        "REQ-54"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-user-visible-diagnostics-so-the-user-can-verify-whether-mapping-data-is-loaded-and-how-many-orders-are-being-matched-on-the-order-list-page",
+      "title": "Add user-visible diagnostics so the user can verify whether mapping data is loaded and how many orders are being matched on the Order List page.",
+      "reqIds": [
+        "REQ-55"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-order-list-enrichment-so-karigar-generic-name-mapping-is-actually-applied-by-design-code-stop-returning-an-always-empty-mapping-lookup-the-mapping-lookup-must-be-fully-built-from-the-currently-loaded-karigar-mapping-workbook-before-enriching-orders-and-it-must-update-reliably-after-a-mapping-upload-and-on-page-refresh",
+      "title": "Fix the Order List enrichment so karigar/generic-name mapping is actually applied by Design code (stop returning an always-empty mapping lookup). The mapping lookup must be fully built from the currently loaded karigar mapping workbook before enriching orders, and it must update reliably after a mapping upload and on page refresh.",
+      "reqIds": [
+        "REQ-56"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-daily-order-upload-parsing-so-weight-size-quantity-and-remarks-are-reliably-extracted-as-non-empty-values-from-the-uploaded-orderlist-excel-csv-when-those-columns-exist-handle-common-header-variations-extra-title-rows-and-messy-hidden-whitespace",
+      "title": "Fix Daily Order Upload parsing so Weight, Size, Quantity, and Remarks are reliably extracted as non-empty values from the uploaded OrderList Excel/CSV when those columns exist (handle common header variations, extra title rows, and messy/hidden whitespace).",
+      "reqIds": [
+        "REQ-57"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-quick-user-visible-diagnostics-on-the-daily-order-upload-page-after-parsing-that-clearly-indicate-how-many-rows-have-non-empty-weight-size-quantity-values-to-confirm-extraction-worked",
+      "title": "Add quick, user-visible diagnostics on the Daily Order Upload page after parsing that clearly indicate how many rows have non-empty Weight/Size/Quantity values (to confirm extraction worked).",
+      "reqIds": [
+        "REQ-58"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-design-code-matching-so-order-list-enrichment-successfully-maps-orders-to-karigar-generic-name-even-when-design-codes-differ-only-by-separators-e-g-hyphens-underscores-slashes-or-formatting",
+      "title": "Fix design-code matching so Order List enrichment successfully maps orders to karigar/generic name even when design codes differ only by separators (e.g., hyphens, underscores, slashes) or formatting.",
+      "reqIds": [
+        "REQ-59"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-canonical-design-code-normalization-used-for-matching-so-it-is-robust-to-common-separator-differences-by-producing-the-same-lookup-key-for-equivalent-design-codes-across-uploads-orders-and-mapping",
+      "title": "Update canonical design-code normalization used for matching so it is robust to common separator differences by producing the same lookup key for equivalent design codes across uploads (orders and mapping).",
+      "reqIds": [
+        "REQ-60"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-decoded-mapping-lookup-is-rebuilt-after-a-successful-mapping-upload-and-when-the-stored-mapping-changes-so-order-list-does-not-keep-using-a-stale-lookup",
+      "title": "Ensure the decoded mapping lookup is rebuilt after a successful mapping upload and when the stored mapping changes, so Order List does not keep using a stale lookup.",
+      "reqIds": [
+        "REQ-61"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-make-mapping-lookup-construction-resilient-to-older-saved-mapping-blobs-by-recomputing-the-normalized-lookup-key-from-the-stored-design-value-using-the-current-normalization-rules-do-not-rely-exclusively-on-a-previously-persisted-designnormalized-value",
+      "title": "Make mapping lookup construction resilient to older saved mapping blobs by recomputing the normalized lookup key from the stored design value using the current normalization rules (do not rely exclusively on a previously persisted designNormalized value).",
+      "reqIds": [
+        "REQ-62"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-improve-order-list-diagnostics-when-mapping-loaded-but-no-orders-match-occurs-by-showing-a-small-english-user-readable-hint-that-includes-concrete-debug-counts-e-g-number-of-distinct-normalized-order-design-keys-and-a-small-sample-to-help-confirm-whether-normalization-matching-is-working",
+      "title": "Improve Order List diagnostics when 'mapping loaded but no orders match' occurs by showing a small, English, user-readable hint that includes concrete debug counts (e.g., number of distinct normalized order design keys and a small sample) to help confirm whether normalization/matching is working.",
+      "reqIds": [
+        "REQ-63"
       ],
       "version": 1
     }

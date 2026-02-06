@@ -1,69 +1,102 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Daily Order Upload: robust Weight/Size/Quantity/Remarks extraction + user-visible parse diagnostics",
+  "title": "Fix karigar mapping enrichment by robust design-code normalization, fresh lookup rebuild, and better Order List diagnostics",
   "requirements": [
     {
-      "id": "REQ-49",
-      "summary": "Harden Daily Order Upload parser to reliably detect the true header row and map common header variants/whitespace to Order No/Design/Weight/Size/Quantity/Remarks for XLSX/XLS/CSV.",
+      "id": "REQ-59",
+      "summary": "Make Order List enrichment match design codes even when the only differences are separators/formatting (hyphens, underscores, slashes, spaces).",
       "acceptanceCriteria": [
-        "Uploading a representative OrderList .xlsx/.xls that contains Weight/Size/Quantity/Remarks results in those columns being populated in the parsed output (not blank) when the source file has values.",
-        "If the file has extra title rows before the actual header row, the parser still detects the correct header row and maps the correct columns to Order No/Design/Weight/Size/Quantity/Remarks.",
-        "If the header labels use common variations (e.g., \"Remark's\", \"Qty.\", \"Net Wt\"), the parser still matches them to the correct required fields.",
-        "Parser behavior remains compatible with .csv uploads and does not regress Order No/Design extraction."
+        "Given a mapping dataset is loaded and daily orders exist, orders with the same design code but different separator formatting between files (e.g., \"AB-12\" vs \"AB12\"; \"AB/12\" vs \"AB-12\") are enriched with Generic Name and Karigar Name on the Order List tab.",
+        "The enrichment logic does not regress existing matching for already-working design code formats.",
+        "User-facing text remains in English."
       ],
       "file_operations": [
-        {
-          "path": "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
-          "operation": "modify",
-          "description": "Improve header-row detection and column matching robustness: normalize header cells using existing text normalization utilities (including removal of hidden/unusual whitespace); expand header aliases for Weight/Size/Quantity/Remarks (covering punctuation/casing variants such as \"Remark's\", \"Qty.\", \"Net Wt\"); strengthen scoring/selection of non-first header rows; and apply normalization consistently for CSV cell parsing so required fields extract non-empty values when present."
-        },
         {
           "path": "frontend/src/utils/textNormalize.ts",
           "operation": "modify",
-          "description": "Extend normalization utilities as needed to better handle hidden/unusual whitespace and punctuation patterns seen in real OrderList headers/cells, ensuring header matching and extracted values remain stable across XLSX/XLS/CSV."
+          "description": "Update normalizeDesignCode to produce equivalent lookup keys for design codes that differ only by separators/formatting by stripping common non-alphanumeric separators (including hyphens/underscores/slashes and similar punctuation) while keeping prior hidden/invisible-character handling and case-insensitivity."
+        },
+        {
+          "path": "frontend/src/features/order-list/OrderListTab.tsx",
+          "operation": "modify",
+          "description": "Ensure Order List enrichment continues to use the canonical normalizeDesignCode for order.design lookup so separator-only variants map to the same karigar/generic name."
         }
       ]
     },
     {
-      "id": "REQ-50",
-      "summary": "Show Daily Order Upload parsing warnings and detected-header details in the UI (English) so users can understand missing optional columns and when a non-first header row was used.",
+      "id": "REQ-60",
+      "summary": "Strengthen the canonical design-code normalization so orders and mappings generate the same robust matching key across uploads.",
       "acceptanceCriteria": [
-        "When optional columns (Weight/Size/Quantity/Remarks) are not detected, the Daily Order Upload page shows a visible, non-crashing warning message listing the missing columns.",
-        "When parsing succeeds but uses a header row that is not the first row, the UI indicates which row was treated as the header (e.g., \"Detected headers on row N\").",
-        "Warnings do not block saving parsed orders to the backend when parsing otherwise succeeds."
+        "Normalization removes hidden/invisible characters and whitespace as before.",
+        "Normalization also handles common separators so that codes differing only by hyphens/other non-alphanumeric separators match reliably.",
+        "Unit-level verification is possible by manually testing a few representative examples in the UI (upload mapping + upload orders) and seeing matchedOrders > 0 when data overlaps."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
+          "path": "frontend/src/utils/textNormalize.ts",
           "operation": "modify",
-          "description": "Change parser to return structured parse diagnostics (e.g., warnings plus detected header row index and detected headers) alongside parsed orders, rather than only console logging warnings."
+          "description": "Refine normalizeDesignCode to (1) preserve existing removal of hidden/invisible characters and whitespace and (2) normalize away separator differences by removing non-alphanumeric characters so equivalent codes share the same canonical key."
         },
         {
-          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+          "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "operation": "modify",
-          "description": "Render user-visible parsing diagnostics using existing shadcn/ui Alert/Card components: display a non-blocking warning for missing optional columns (Weight/Size/Quantity/Remarks) and display detected header-row info when the header is not on the first row; ensure these warnings do not prevent the save attempt when parsing succeeds. Verify the component's usage instructions before implementing."
+          "description": "Confirm mapping parsing continues to compute designNormalized using the updated normalizeDesignCode so newly uploaded mappings align with Order List matching keys."
         }
       ]
     },
     {
-      "id": "REQ-51",
-      "summary": "Keep the Daily Order Upload flow resilient after parser changes: parsed rows always populate the on-page table, save attempts proceed, and parse/save failures show clear English errors without losing parsed data on save failure.",
+      "id": "REQ-61",
+      "summary": "Rebuild decoded mapping lookup after mapping upload and when stored mapping changes so Order List does not use stale derived data.",
       "acceptanceCriteria": [
-        "After uploading a valid file, the Daily Order Upload page shows the parsed row count and a table including Order No, Design, Weight, Size, Quantity, Remarks.",
-        "If parsing succeeds but storing to the backend fails, the parsed orders remain visible in the UI and an English 'saving failed' error is shown (separate from parsing errors).",
-        "If parsing fails, the UI shows an English parsing error and does not crash; the file input is reset so the user can retry."
+        "After uploading a new mapping file in the Karigar Mapping tab, switching to the Order List tab (or staying on it) shows updated matching results without requiring a hard refresh.",
+        "React Query invalidation covers both the stored mapping blob query and the derived decoded-mapping lookup query so stale derived data is not reused."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
+          "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Update the upload handler to work with the new parse result shape while preserving current resilience: keep parsed orders visible even if saving fails (and keep save error separate from parse error), show clear English parse errors on parse failures, and ensure the file input is reset to allow retry without crashing. Verify the component's usage instructions before implementing."
+          "description": "Extend the mapping upload success invalidation to also invalidate the derived decoded mapping lookup query (in addition to the stored mapping blob query) so Order List rebuilds enrichment immediately without a hard refresh."
         },
         {
-          "path": "frontend/src/utils/userFacingError.ts",
+          "path": "frontend/src/features/order-list/useKarigarMappingLookup.ts",
           "operation": "modify",
-          "description": "Ensure user-facing error messages remain clear and appropriately separated for parsing vs saving failures after parser changes (keep parsing-specific messages detailed and in English)."
+          "description": "Adjust decoded mapping lookup React Query caching keys and/or staleness so the derived lookup reliably rebuilds when the mapping blob query is invalidated/refetched."
+        }
+      ]
+    },
+    {
+      "id": "REQ-62",
+      "summary": "Make mapping lookup construction compatible with older saved blobs by recomputing normalized keys from stored design values using current rules.",
+      "acceptanceCriteria": [
+        "If an older mapping blob contains entries with designNormalized values created under older rules, the app still matches orders correctly after this fix without requiring the user to re-upload the mapping file.",
+        "No crashes occur during mapping decode; decode errors continue to be shown as clear English messages on the Order List tab."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+          "operation": "modify",
+          "description": "When building the lookup, recompute the normalized key from entry.design using the current normalizeDesignCode rules (use persisted designNormalized only as a fallback for missing design), ensuring older blobs still match after normalization changes."
+        },
+        {
+          "path": "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
+          "operation": "modify",
+          "description": "Harden decoding to tolerate older blob shapes while ensuring normalized keys used for matching are computed from the stored design field using the current normalization rules, and keep decode failures surfaced as clear English errors."
+        }
+      ]
+    },
+    {
+      "id": "REQ-63",
+      "summary": "Improve Order List diagnostics when mapping is loaded but no orders match by adding concrete debug counts and a small sample of normalized keys.",
+      "acceptanceCriteria": [
+        "When mapping entries > 0 and matchedOrders == 0 and totalOrders > 0, the UI shows additional diagnostics in English beyond the existing generic bullet list (without exposing raw stack traces).",
+        "Diagnostics do not block normal usage and remain hidden when matching is working (matchedOrders > 0)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/features/order-list/OrderListTab.tsx",
+          "operation": "modify",
+          "description": "Enhance the 'mapping loaded but no orders match' warning UI to include additional English diagnostics: distinct normalized order design key count and a small sample of normalized keys (and optionally mapping key count/sample), without exposing stack traces; keep the diagnostics hidden when matchedOrders > 0."
         }
       ]
     }

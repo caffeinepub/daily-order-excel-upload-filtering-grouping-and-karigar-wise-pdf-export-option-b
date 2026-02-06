@@ -1,72 +1,100 @@
 {
   "kind": "build_request",
-  "title": "Fix Daily Order Upload extraction so Weight/Size/Quantity/Remarks parse reliably and show user-visible parse diagnostics",
+  "title": "Fix karigar mapping enrichment not matching any orders on Order List tab",
   "priority": "high",
   "requirements": [
     {
-      "id": "REQ-49",
-      "text": "Improve the Daily Order Upload file parser so it reliably extracts non-empty values for all required fields (Order No, Design, Weight, Size, Quantity, Remarks) from common OrderList Excel/CSV formats, including when there are extra title rows above the real header row, when headers use common variations (e.g., different casing/punctuation, \"Remark's\"), and when there are hidden/unusual whitespace characters.",
+      "id": "REQ-59",
+      "text": "Fix design-code matching so Order List enrichment successfully maps orders to karigar/generic name even when design codes differ only by separators (e.g., hyphens, underscores, slashes) or formatting.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-3"
+          "msg-6"
         ],
         "quotes": [
-          "Please extract the data properly"
+          "I have checked and rectified all of it and tried uploading new file too but still it isn’t getting mapped, rectify pls"
         ]
       },
       "acceptanceCriteria": [
-        "Uploading a representative OrderList .xlsx/.xls that contains Weight/Size/Quantity/Remarks results in those columns being populated in the parsed output (not blank) when the source file has values.",
-        "If the file has extra title rows before the actual header row, the parser still detects the correct header row and maps the correct columns to Order No/Design/Weight/Size/Quantity/Remarks.",
-        "If the header labels use common variations (e.g., \"Remark's\", \"Qty.\", \"Net Wt\"), the parser still matches them to the correct required fields.",
-        "Parser behavior remains compatible with .csv uploads and does not regress Order No/Design extraction."
+        "Given a mapping dataset is loaded and daily orders exist, orders with the same design code but different separator formatting between files (e.g., \"AB-12\" vs \"AB12\"; \"AB/12\" vs \"AB-12\") are enriched with Generic Name and Karigar Name on the Order List tab.",
+        "The enrichment logic does not regress existing matching for already-working design code formats.",
+        "User-facing text remains in English."
       ]
     },
     {
-      "id": "REQ-50",
-      "text": "Expose Daily Order Upload parsing warnings and detected-header information to the user in the Daily Order Upload UI (in English) instead of only logging warnings to the console, so the user can understand when the file is missing optional columns or when a non-first header row was used.",
+      "id": "REQ-60",
+      "text": "Update canonical design-code normalization used for matching so it is robust to common separator differences by producing the same lookup key for equivalent design codes across uploads (orders and mapping).",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-3"
+          "msg-6"
         ],
         "quotes": [
-          "Please extract the data properly"
+          "A mapping is loaded but no orders match. This may indicate:\nDesign codes in orders don't match those in the mapping file\nDifferent formatting (spaces, dashes, case) between files"
         ]
       },
       "acceptanceCriteria": [
-        "When optional columns (Weight/Size/Quantity/Remarks) are not detected, the Daily Order Upload page shows a visible, non-crashing warning message listing the missing columns.",
-        "When parsing succeeds but uses a header row that is not the first row, the UI indicates which row was treated as the header (e.g., \"Detected headers on row N\").",
-        "Warnings do not block saving parsed orders to the backend when parsing otherwise succeeds."
+        "Normalization removes hidden/invisible characters and whitespace as before.",
+        "Normalization also handles common separators so that codes differing only by hyphens/other non-alphanumeric separators match reliably.",
+        "Unit-level verification is possible by manually testing a few representative examples in the UI (upload mapping + upload orders) and seeing matchedOrders > 0 when data overlaps."
       ]
     },
     {
-      "id": "REQ-51",
-      "text": "Ensure the Daily Order Upload flow does not crash or abort after parser changes: successful parses must still populate the on-page table and attempt to save to the backend; failures must show a clear English error without losing already-parsed rows when only the save step fails.",
+      "id": "REQ-61",
+      "text": "Ensure the decoded mapping lookup is rebuilt after a successful mapping upload and when the stored mapping changes, so Order List does not keep using a stale lookup.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-3"
-        ],
-        "quotes": [
-          "Please extract the data properly"
+          "msg-6"
         ]
       },
       "acceptanceCriteria": [
-        "After uploading a valid file, the Daily Order Upload page shows the parsed row count and a table including Order No, Design, Weight, Size, Quantity, Remarks.",
-        "If parsing succeeds but storing to the backend fails, the parsed orders remain visible in the UI and an English 'saving failed' error is shown (separate from parsing errors).",
-        "If parsing fails, the UI shows an English parsing error and does not crash; the file input is reset so the user can retry."
+        "After uploading a new mapping file in the Karigar Mapping tab, switching to the Order List tab (or staying on it) shows updated matching results without requiring a hard refresh.",
+        "React Query invalidation covers both the stored mapping blob query and the derived decoded-mapping lookup query so stale derived data is not reused."
+      ]
+    },
+    {
+      "id": "REQ-62",
+      "text": "Make mapping lookup construction resilient to older saved mapping blobs by recomputing the normalized lookup key from the stored design value using the current normalization rules (do not rely exclusively on a previously persisted designNormalized value).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-6"
+        ]
+      },
+      "acceptanceCriteria": [
+        "If an older mapping blob contains entries with designNormalized values created under older rules, the app still matches orders correctly after this fix without requiring the user to re-upload the mapping file.",
+        "No crashes occur during mapping decode; decode errors continue to be shown as clear English messages on the Order List tab."
+      ]
+    },
+    {
+      "id": "REQ-63",
+      "text": "Improve Order List diagnostics when 'mapping loaded but no orders match' occurs by showing a small, English, user-readable hint that includes concrete debug counts (e.g., number of distinct normalized order design keys and a small sample) to help confirm whether normalization/matching is working.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-6"
+        ],
+        "quotes": [
+          "The error showing in the order list page regarding mapping mentioned below"
+        ]
+      },
+      "acceptanceCriteria": [
+        "When mapping entries > 0 and matchedOrders == 0 and totalOrders > 0, the UI shows additional diagnostics in English beyond the existing generic bullet list (without exposing raw stack traces).",
+        "Diagnostics do not block normal usage and remain hidden when matching is working (matchedOrders > 0)."
       ]
     }
   ],
   "constraints": [
-    "Do not edit any files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui (compose existing UI components instead).",
-    "Backend must remain a single Motoko actor in backend/main.mo; only introduce backend migration (backend/migration.mo) if existing stable state must change."
+    "Frontend must remain React + TypeScript with Tailwind and React Query.",
+    "Do not edit files under frontend/src/components/ui (shadcn) or other immutable paths listed in SYSTEM_CONTEXT.",
+    "Backend must remain single-actor Motoko; only add migration if state schema changes (not expected for this fix).",
+    "Use English for any user-facing text."
   ],
   "nonGoals": [
-    "Changing backend storage schema for DailyOrder fields (Order No, Design, Weight, Size, Quantity, Remarks).",
-    "Adding new authentication or identity requirements.",
-    "Implementing new mapping/enrichment logic unrelated to Daily Order field extraction."
+    "Changing the backend data model for daily orders or mapping storage.",
+    "Adding new authentication or identity features.",
+    "Implementing new export formats or changing existing export file structure beyond what is required to fix mapping enrichment."
   ],
   "imageRequirements": {
     "required": [],

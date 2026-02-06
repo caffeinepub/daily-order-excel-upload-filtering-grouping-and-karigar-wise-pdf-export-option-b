@@ -78,6 +78,23 @@ export default function DailyOrdersPage() {
     return filtered;
   }, [currentOrders, searchText, sortColumn]);
 
+  // Calculate diagnostics for parsed data
+  const diagnostics = useMemo(() => {
+    if (currentOrders.length === 0) return null;
+
+    const totalRows = currentOrders.length;
+    const rowsWithWeight = currentOrders.filter((o) => o.weight && o.weight.trim()).length;
+    const rowsWithSize = currentOrders.filter((o) => o.size && o.size.trim()).length;
+    const rowsWithQuantity = currentOrders.filter((o) => o.quantity && o.quantity.trim()).length;
+
+    return {
+      totalRows,
+      rowsWithWeight,
+      rowsWithSize,
+      rowsWithQuantity,
+    };
+  }, [currentOrders]);
+
   const handleOrderListUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -168,34 +185,16 @@ export default function DailyOrdersPage() {
     <div className="space-y-6">
       <div className="mb-8 space-y-2">
         <h2 className="text-2xl font-bold tracking-tight">Daily Order Upload</h2>
-        <p className="text-muted-foreground">
-          Upload daily orders and view extracted data
-        </p>
+        <p className="text-muted-foreground">Upload daily orders and view extracted data</p>
       </div>
 
       {/* Actor loading state */}
       {!isReady && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Connecting to backend...</AlertDescription>
+          <AlertTitle>Backend Initializing</AlertTitle>
+          <AlertDescription>Please wait while the backend is getting ready...</AlertDescription>
         </Alert>
-      )}
-
-      {/* Parse warnings */}
-      {parseWarnings.length > 0 && (
-        <div className="space-y-2">
-          {parseWarnings.map((warning, idx) => (
-            <Alert key={idx} variant="default" className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
-              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <AlertTitle className="text-amber-900 dark:text-amber-100">
-                {warning.type === 'missing-columns' ? 'Optional Columns Missing' : 'Non-Standard Header Location'}
-              </AlertTitle>
-              <AlertDescription className="text-amber-800 dark:text-amber-200">
-                {warning.message}
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
       )}
 
       {/* Parse error */}
@@ -203,213 +202,223 @@ export default function DailyOrdersPage() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Parsing Error</AlertTitle>
-          <AlertDescription className="whitespace-pre-line">{parseError}</AlertDescription>
+          <AlertDescription className="whitespace-pre-wrap">{parseError}</AlertDescription>
         </Alert>
       )}
 
-      {/* Save error (separate from parse error) */}
+      {/* Save error */}
       {saveError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Saving Failed</AlertTitle>
+          <AlertTitle>Save Error</AlertTitle>
           <AlertDescription>
-            {saveError} The parsed data is still visible below, but was not saved to the backend.
+            Orders were parsed successfully but could not be saved: {saveError}
           </AlertDescription>
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Date Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Calendar className="h-4 w-4" />
-                Select Date
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={handleDateChange}
-                max={format(new Date(), 'yyyy-MM-dd')}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Upload OrderList */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Upload className="h-4 w-4" />
-                Upload OrderList
-              </CardTitle>
-              <CardDescription>Upload order file (.csv, .xlsx, .xls)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Label htmlFor="orderlist-upload" className="cursor-pointer">
-                <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 transition-colors hover:border-muted-foreground/50">
-                  <div className="text-center">
-                    <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {isUploading ? 'Processing...' : 'Click to upload'}
-                    </p>
-                  </div>
-                </div>
-              </Label>
-              <Input
-                id="orderlist-upload"
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleOrderListUpload}
-                disabled={isUploading || !isReady}
-                className="hidden"
-              />
-            </CardContent>
-          </Card>
-
-          {/* Export Options */}
-          {currentOrders.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Download className="h-4 w-4" />
-                  Export
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportAll}
-                  className="w-full"
-                  disabled={filteredOrders.length === 0}
-                >
-                  Export All ({filteredOrders.length})
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportSelected}
-                  className="w-full"
-                  disabled={selectedOrderIds.size === 0}
-                >
-                  Export Selected ({selectedOrderIds.size})
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+      {/* Parse warnings */}
+      {parseWarnings.length > 0 && (
+        <div className="space-y-2">
+          {parseWarnings.map((warning, idx) => (
+            <Alert key={idx} className="border-orange-500 bg-orange-50 text-orange-900 dark:bg-orange-950 dark:text-orange-100">
+              <Info className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <AlertTitle>Parsing Warning</AlertTitle>
+              <AlertDescription className="whitespace-pre-wrap">{warning.message}</AlertDescription>
+            </Alert>
+          ))}
         </div>
+      )}
 
-        {/* Main Content */}
-        <div className="space-y-4">
-          {/* Search and Sort */}
-          {currentOrders.length > 0 && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <Input
-                    placeholder="Search orders..."
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    className="max-w-sm"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant={sortColumn === 'orderNo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSortColumn(sortColumn === 'orderNo' ? null : 'orderNo')}
-                    >
-                      Sort by Order No
-                    </Button>
-                    <Button
-                      variant={sortColumn === 'design' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSortColumn(sortColumn === 'design' ? null : 'design')}
-                    >
-                      Sort by Design
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      {/* Diagnostics card */}
+      {diagnostics && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Extraction Summary</CardTitle>
+            <CardDescription>Column extraction results from uploaded file</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Total Rows:</span>
+                <span className="ml-2 font-medium">{diagnostics.totalRows}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Rows with Weight:</span>
+                <span className="ml-2 font-medium">{diagnostics.rowsWithWeight}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Rows with Size:</span>
+                <span className="ml-2 font-medium">{diagnostics.rowsWithSize}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Rows with Quantity:</span>
+                <span className="ml-2 font-medium">{diagnostics.rowsWithQuantity}</span>
+              </div>
+            </div>
+            {(diagnostics.rowsWithWeight === 0 || diagnostics.rowsWithSize === 0 || diagnostics.rowsWithQuantity === 0) && (
+              <Alert className="mt-4 border-orange-500 bg-orange-50 text-orange-900 dark:bg-orange-950 dark:text-orange-100">
+                <Info className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                <AlertDescription>
+                  Some optional columns appear to be empty. If your file contains Weight, Size, or Quantity data, please
+                  check that the column headers match expected formats (e.g., "Weight", "Wt", "Size", "Qty", "Quantity").
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Orders Table */}
-          {loadingOrders ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Loading orders...
-              </CardContent>
-            </Card>
-          ) : currentOrders.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                No orders for {format(new Date(selectedDate), 'MMM dd, yyyy')}. Upload a file to get started.
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>
-                    Orders ({filteredOrders.length})
-                  </CardTitle>
-                  {filteredOrders.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={selectAllOrders}
-                        id="select-all"
-                      />
-                      <Label htmlFor="select-all" className="cursor-pointer text-sm font-normal">
-                        Select All
-                      </Label>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="px-2 py-2 text-left font-medium">Select</th>
-                        <th className="px-2 py-2 text-left font-medium">Order No</th>
-                        <th className="px-2 py-2 text-left font-medium">Design</th>
-                        <th className="px-2 py-2 text-left font-medium">Weight</th>
-                        <th className="px-2 py-2 text-left font-medium">Size</th>
-                        <th className="px-2 py-2 text-left font-medium">Quantity</th>
-                        <th className="px-2 py-2 text-left font-medium">Remarks</th>
+      {/* Upload section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload Order List</CardTitle>
+          <CardDescription>Select a date and upload an Excel or CSV file containing daily orders</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-end gap-4">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="order-date">Date</Label>
+              <div className="relative">
+                <Input
+                  id="order-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={handleDateChange}
+                  disabled={isUploading || !isReady}
+                  className="pr-10"
+                />
+                <Calendar className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="order-file">Order List File</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="order-file"
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleOrderListUpload}
+                  disabled={isUploading || !isReady}
+                  className="flex-1"
+                />
+                <Button disabled={isUploading || !isReady} variant="outline" size="icon" asChild>
+                  <label htmlFor="order-file" className="cursor-pointer">
+                    <Upload className="h-4 w-4" />
+                  </label>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Orders table */}
+      {loadingOrders ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">Loading orders...</p>
+          </CardContent>
+        </Card>
+      ) : currentOrders.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">No orders uploaded for {selectedDate}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Orders for {selectedDate}</CardTitle>
+                <CardDescription>
+                  {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'}
+                  {searchText && ` (filtered from ${currentOrders.length})`}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportAll} disabled={filteredOrders.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export All
+                </Button>
+                {selectedOrderIds.size > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleExportSelected}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Selected ({selectedOrderIds.size})
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Search and sort controls */}
+            <div className="flex gap-4">
+              <Input
+                placeholder="Search orders..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="max-w-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant={sortColumn === 'orderNo' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortColumn(sortColumn === 'orderNo' ? null : 'orderNo')}
+                >
+                  Sort by Order No
+                </Button>
+                <Button
+                  variant={sortColumn === 'design' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortColumn(sortColumn === 'design' ? null : 'design')}
+                >
+                  Sort by Design
+                </Button>
+              </div>
+            </div>
+
+            {/* Orders table */}
+            <div className="rounded-md border">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <th className="p-2 text-left">
+                        <Checkbox checked={allSelected} onCheckedChange={selectAllOrders} />
+                      </th>
+                      <th className="p-2 text-left font-medium">Order No</th>
+                      <th className="p-2 text-left font-medium">Design</th>
+                      <th className="p-2 text-left font-medium">Weight</th>
+                      <th className="p-2 text-left font-medium">Size</th>
+                      <th className="p-2 text-left font-medium">Quantity</th>
+                      <th className="p-2 text-left font-medium">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => (
+                      <tr key={order.orderNo} className="border-b hover:bg-muted/30">
+                        <td className="p-2">
+                          <Checkbox
+                            checked={selectedOrderIds.has(order.orderNo)}
+                            onCheckedChange={() => toggleOrderSelection(order.orderNo)}
+                          />
+                        </td>
+                        <td className="p-2">{order.orderNo}</td>
+                        <td className="p-2">{order.design}</td>
+                        <td className="p-2">{order.weight || '-'}</td>
+                        <td className="p-2">{order.size || '-'}</td>
+                        <td className="p-2">{order.quantity || '-'}</td>
+                        <td className="p-2">{order.remarks || '-'}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOrders.map((order, idx) => (
-                        <tr key={idx} className="border-b hover:bg-muted/50">
-                          <td className="px-2 py-2">
-                            <Checkbox
-                              checked={selectedOrderIds.has(order.orderNo)}
-                              onCheckedChange={() => toggleOrderSelection(order.orderNo)}
-                            />
-                          </td>
-                          <td className="px-2 py-2">{order.orderNo}</td>
-                          <td className="px-2 py-2">{order.design}</td>
-                          <td className="px-2 py-2">{order.weight || '-'}</td>
-                          <td className="px-2 py-2">{order.size || '-'}</td>
-                          <td className="px-2 py-2">{order.quantity || '-'}</td>
-                          <td className="px-2 py-2">{order.remarks || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

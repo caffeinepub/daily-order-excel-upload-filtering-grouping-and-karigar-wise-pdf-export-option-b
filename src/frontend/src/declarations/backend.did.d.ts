@@ -25,6 +25,11 @@ export interface KarigarAssignment {
   'orderId' : string,
   'factory' : [] | [string],
 }
+export interface KarigarMapping {
+  'karigar' : string,
+  'designPattern' : string,
+  'factory' : [] | [string],
+}
 export interface UserProfile { 'name' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
@@ -67,12 +72,14 @@ export interface _SERVICE {
   'getDailyOrders' : ActorMethod<[Date], Array<DailyOrder>>,
   'getKarigarAssignments' : ActorMethod<[Date], Array<KarigarAssignment>>,
   'getKarigarMappingWorkbook' : ActorMethod<[], [] | [ExternalBlob]>,
+  'getKarigarMappings' : ActorMethod<[], Array<[string, KarigarMapping]>>,
   'getOrdersByKarigar' : ActorMethod<[Date, string], Array<DailyOrder>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveKarigarMappingWorkbook' : ActorMethod<[ExternalBlob], undefined>,
   'storeDailyOrders' : ActorMethod<[Date, Array<DailyOrder>], undefined>,
+  'storeKarigarMappings' : ActorMethod<[Array<KarigarMapping>], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

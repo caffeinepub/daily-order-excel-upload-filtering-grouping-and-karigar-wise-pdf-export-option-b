@@ -1,5 +1,6 @@
 import type { ParsedOrder } from '../excel/parseDailyOrders';
 import type { KarigarAssignment } from '@/backend';
+import { normalizeDesignCode } from '@/utils/textNormalize';
 
 export async function exportFactoryHtml(
   date: string,
@@ -111,7 +112,9 @@ export async function exportFactoryHtml(
         </thead>
         <tbody>
           ${karigarOrders.map((order, index) => {
-            const mapping = mappingLookup.get(order.design);
+            // Normalize design code before lookup
+            const normalizedDesign = normalizeDesignCode(order.design);
+            const mapping = mappingLookup.get(normalizedDesign);
             const genericName = mapping?.genericName || '-';
             return `
             <tr>

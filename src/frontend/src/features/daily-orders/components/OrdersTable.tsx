@@ -3,6 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ParsedOrder } from '../excel/parseDailyOrders';
 import type { KarigarAssignment } from '@/backend';
+import { normalizeDesignCode } from '@/utils/textNormalize';
 
 interface OrdersTableProps {
   orders: ParsedOrder[];
@@ -37,7 +38,9 @@ export default function OrdersTable({
         <TableBody>
           {orders.map((order) => {
             const assignment = assignmentMap.get(order.orderNo);
-            const mapping = mappingLookup.get(order.design);
+            // Normalize design code before lookup
+            const normalizedDesign = normalizeDesignCode(order.design);
+            const mapping = mappingLookup.get(normalizedDesign);
             const genericName = mapping?.genericName || '-';
             
             return (

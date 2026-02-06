@@ -40,6 +40,11 @@ export const KarigarAssignment = IDL.Record({
   'factory' : IDL.Opt(IDL.Text),
 });
 export const ExternalBlob = IDL.Vec(IDL.Nat8);
+export const KarigarMapping = IDL.Record({
+  'karigar' : IDL.Text,
+  'designPattern' : IDL.Text,
+  'factory' : IDL.Opt(IDL.Text),
+});
 
 export const idlService = IDL.Service({
   '_caffeineStorageBlobIsLive' : IDL.Func(
@@ -88,6 +93,11 @@ export const idlService = IDL.Service({
       [IDL.Opt(ExternalBlob)],
       ['query'],
     ),
+  'getKarigarMappings' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Text, KarigarMapping))],
+      ['query'],
+    ),
   'getOrdersByKarigar' : IDL.Func(
       [Date, IDL.Text],
       [IDL.Vec(DailyOrder)],
@@ -102,6 +112,7 @@ export const idlService = IDL.Service({
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'saveKarigarMappingWorkbook' : IDL.Func([ExternalBlob], [], []),
   'storeDailyOrders' : IDL.Func([Date, IDL.Vec(DailyOrder)], [], []),
+  'storeKarigarMappings' : IDL.Func([IDL.Vec(KarigarMapping)], [], []),
 });
 
 export const idlInitArgs = [];
@@ -139,6 +150,11 @@ export const idlFactory = ({ IDL }) => {
     'factory' : IDL.Opt(IDL.Text),
   });
   const ExternalBlob = IDL.Vec(IDL.Nat8);
+  const KarigarMapping = IDL.Record({
+    'karigar' : IDL.Text,
+    'designPattern' : IDL.Text,
+    'factory' : IDL.Opt(IDL.Text),
+  });
   
   return IDL.Service({
     '_caffeineStorageBlobIsLive' : IDL.Func(
@@ -187,6 +203,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(ExternalBlob)],
         ['query'],
       ),
+    'getKarigarMappings' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, KarigarMapping))],
+        ['query'],
+      ),
     'getOrdersByKarigar' : IDL.Func(
         [Date, IDL.Text],
         [IDL.Vec(DailyOrder)],
@@ -201,6 +222,7 @@ export const idlFactory = ({ IDL }) => {
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'saveKarigarMappingWorkbook' : IDL.Func([ExternalBlob], [], []),
     'storeDailyOrders' : IDL.Func([Date, IDL.Vec(DailyOrder)], [], []),
+    'storeKarigarMappings' : IDL.Func([IDL.Vec(KarigarMapping)], [], []),
   });
 };
 

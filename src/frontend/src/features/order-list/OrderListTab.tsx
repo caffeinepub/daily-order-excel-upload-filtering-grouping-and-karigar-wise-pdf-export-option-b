@@ -1,114 +1,60 @@
-import { useState, useMemo, useEffect } from 'react';
-import { format } from 'date-fns';
-import { Calendar, AlertCircle, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { useState, useMemo } from 'react';
+import { Calendar, AlertCircle, Info } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useGetDailyOrders, useGetKarigarMappingWorkbook, useRemoveOrders } from '@/hooks/useQueries';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useGetDailyOrders, useGetKarigarMappingWorkbook } from '@/hooks/useQueries';
 import { useActorWithStatus } from '@/hooks/useActorWithStatus';
-import { decodeBlobToMapping } from '../karigar-mapping/karigarMappingBlobCodec';
-import KarigarOrderGroups from './components/KarigarOrderGroups';
-import { getUserFacingError } from '@/utils/userFacingError';
 import { normalizeDesignCode } from '@/utils/textNormalize';
+import { useKarigarMappingLookup } from './useKarigarMappingLookup';
+import KarigarOrderGroups from './components/KarigarOrderGroups';
+
+export interface EnrichedOrder {
+  orderNo: string;
+  design: string;
+  weight: string;
+  size: string;
+  quantity: string;
+  remarks: string;
+  genericName?: string;
+  karigar?: string;
+}
 
 export default function OrderListTab() {
-  // Initialize date from session storage (synced with Daily Orders upload) or default to today
   const [selectedDate, setSelectedDate] = useState(() => {
-    const lastUploadDate = sessionStorage.getItem('lastUploadDate');
-    return lastUploadDate || format(new Date(), 'yyyy-MM-dd');
+    const today = new Date();
+    return today.toISOString().split('T')[0];
   });
   const [selectedKarigar, setSelectedKarigar] = useState<string>('all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
-  const [mappingData, setMappingData] = useState<any>(null);
 
-  const { isReady } = useActorWithStatus();
-  const { 
-    data: savedOrders = [], 
-    isLoading: loadingOrders, 
-    error: ordersError,
-    isFetched: ordersFetched 
-  } = useGetDailyOrders(selectedDate);
-  const { 
-    data: mappingBlob, 
-    error: mappingError,
-    isFetched: mappingFetched 
-  } = useGetKarigarMappingWorkbook();
-  const removeOrders = useRemoveOrders();
+  const { isReady, isError, error } = useActorWithStatus();
+  const { data: orders = [], isLoading: ordersLoading } = useGetDailyOrders(selectedDate);
+  const { data: mappingBlob, isLoading: mappingLoading } = useGetKarigarMappingWorkbook();
 
-  // Persist selected date to session storage whenever it changes
-  useEffect(() => {
-    sessionStorage.setItem('lastUploadDate', selectedDate);
-  }, [selectedDate]);
+  // Decode and build lookup map from persisted mapping using the new hook
+  const { mappingLookup, mappingEntryCount, decodeError, isDecoding } = useKarigarMappingLookup(mappingBlob || null);
 
-  // Load mapping data from blob
-  useEffect(() => {
-    if (mappingBlob) {
-      decodeBlobToMapping(mappingBlob)
-        .then(setMappingData)
-        .catch((err) => {
-          console.error('Failed to decode mapping:', err);
-          setMappingData(null);
-        });
-    } else {
-      setMappingData(null);
-    }
-  }, [mappingBlob]);
-
-  // Build normalized mapping lookup from decoded data
-  const mappingLookup = useMemo(() => {
-    const lookup = new Map<string, { karigar: string; genericName?: string }>();
-    
-    if (!mappingData) return lookup;
-
-    // Process sheets in priority order: 1, 3, then 2
-    const sheetPriority = ['1', '3', '2'];
-    
-    for (const sheetName of sheetPriority) {
-      const sheet = mappingData[sheetName];
-      if (sheet && sheet.entries) {
-        sheet.entries.forEach((entry: any) => {
-          // Use the normalized design code from the mapping entry
-          const normalizedDesign = entry.designNormalized || normalizeDesignCode(entry.design);
-          if (!lookup.has(normalizedDesign)) {
-            lookup.set(normalizedDesign, {
-              karigar: entry.karigar,
-              genericName: entry.genericName,
-            });
-          }
-        });
-      }
-    }
-    
-    return lookup;
-  }, [mappingData]);
-
-  // Convert saved orders to enriched format with mapping data
-  const enrichedOrders = useMemo(() => {
-    return savedOrders.map((o) => {
-      // Normalize the order's design code for lookup
-      const normalizedDesign = normalizeDesignCode(o.design);
+  // Enrich orders with mapping data using canonical normalization
+  const enrichedOrders = useMemo<EnrichedOrder[]>(() => {
+    return orders.map((order) => {
+      // Normalize the order design code for lookup
+      const normalizedDesign = normalizeDesignCode(order.design);
       const mapping = mappingLookup.get(normalizedDesign);
-      
+
       return {
-        orderNo: o.orderNo,
-        design: o.design, // Keep original for display
-        weight: o.weight || '',
-        size: o.size || '',
-        quantity: o.quantity || '',
-        remarks: o.remarks || '',
-        karigar: mapping?.karigar,
+        ...order,
         genericName: mapping?.genericName,
+        karigar: mapping?.karigar,
       };
     });
-  }, [savedOrders, mappingLookup]);
+  }, [orders, mappingLookup]);
 
-  // Group orders by karigar (from mapping)
+  // Group orders by karigar
   const ordersByKarigar = useMemo(() => {
-    const groups = new Map<string, typeof enrichedOrders>();
-    
+    const groups = new Map<string, EnrichedOrder[]>();
+
     enrichedOrders.forEach((order) => {
       const karigar = order.karigar || 'Unmapped';
       if (!groups.has(karigar)) {
@@ -120,225 +66,205 @@ export default function OrderListTab() {
     return groups;
   }, [enrichedOrders]);
 
-  // Get sorted karigar list
-  const karigars = useMemo(() => {
-    const karigarList = Array.from(ordersByKarigar.keys()).sort((a, b) => {
-      if (a === 'Unmapped') return 1;
-      if (b === 'Unmapped') return -1;
-      return a.localeCompare(b);
+  // Calculate diagnostics with enhanced debug information
+  const diagnostics = useMemo(() => {
+    const totalOrders = enrichedOrders.length;
+    const matchedOrders = enrichedOrders.filter((o) => o.karigar).length;
+    const unmappedOrders = totalOrders - matchedOrders;
+
+    // Collect distinct normalized design codes from orders
+    const orderDesignKeys = new Set<string>();
+    enrichedOrders.forEach((order) => {
+      const normalized = normalizeDesignCode(order.design);
+      if (normalized) orderDesignKeys.add(normalized);
     });
-    return karigarList;
-  }, [ordersByKarigar]);
 
-  // Filter orders by selected karigar
-  const filteredOrders = useMemo(() => {
-    if (selectedKarigar === 'all') return enrichedOrders;
-    return enrichedOrders.filter((o) => (o.karigar || 'Unmapped') === selectedKarigar);
-  }, [enrichedOrders, selectedKarigar]);
+    // Collect sample of normalized keys from mapping
+    const mappingKeys = Array.from(mappingLookup.keys());
+    const mappingSample = mappingKeys.slice(0, 5);
 
-  // Clear selections when date or karigar changes
-  useEffect(() => {
-    setSelectedOrderIds(new Set());
-  }, [selectedDate, selectedKarigar]);
+    // Collect sample of normalized keys from orders
+    const orderKeysSample = Array.from(orderDesignKeys).slice(0, 5);
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDate(e.target.value);
-    setSelectedKarigar('all');
-    setSelectedOrderIds(new Set());
-  };
+    return {
+      totalOrders,
+      mappingEntries: mappingEntryCount,
+      matchedOrders,
+      unmappedOrders,
+      hasMappingButNoMatches: mappingEntryCount > 0 && matchedOrders === 0 && totalOrders > 0,
+      distinctOrderDesigns: orderDesignKeys.size,
+      orderKeysSample,
+      mappingSample,
+    };
+  }, [enrichedOrders, mappingEntryCount, mappingLookup]);
 
   const handleToggleSelection = (orderId: string) => {
     setSelectedOrderIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(orderId)) {
-        newSet.delete(orderId);
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
       } else {
-        newSet.add(orderId);
+        next.add(orderId);
       }
-      return newSet;
+      return next;
     });
   };
 
-  const handleSelectAll = () => {
-    const allOrderIds = filteredOrders.map((o) => o.orderNo);
-    const allSelected = allOrderIds.every((id) => selectedOrderIds.has(id));
-    
-    if (allSelected) {
-      setSelectedOrderIds(new Set());
-    } else {
-      setSelectedOrderIds(new Set(allOrderIds));
-    }
-  };
-
-  const handleRemoveSelected = async () => {
-    if (selectedOrderIds.size === 0) return;
-    
-    try {
-      await removeOrders.mutateAsync({
-        date: selectedDate,
-        orderIds: Array.from(selectedOrderIds),
-      });
-      setSelectedOrderIds(new Set());
-    } catch (error) {
-      console.error('Failed to remove orders:', error);
-    }
-  };
-
-  const allSelected = filteredOrders.length > 0 && filteredOrders.every((o) => selectedOrderIds.has(o.orderNo));
+  const isLoading = ordersLoading || mappingLoading || isDecoding;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Order List</h2>
-          <p className="text-muted-foreground">View orders grouped by karigar from mapping</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={handleDateChange}
-              max={format(new Date(), 'yyyy-MM-dd')}
-              className="w-40"
-            />
-          </div>
-        </div>
+      <div className="mb-8 space-y-2">
+        <h2 className="text-2xl font-bold tracking-tight">Order List</h2>
+        <p className="text-muted-foreground">
+          View all orders for a selected date with enriched karigar and generic name information
+        </p>
       </div>
 
-      {/* Actor loading state */}
-      {!isReady && (
-        <Alert>
+      {/* Actor error state */}
+      {isError && error && (
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Connecting to backend...</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* Daily Orders fetch error */}
-      {ordersError && ordersFetched && (
+      {/* Mapping decode error */}
+      {decodeError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <div>
-              <p className="font-medium">Failed to load daily orders</p>
-              <p className="text-sm">{getUserFacingError(ordersError)}</p>
-            </div>
+            Failed to load karigar mapping: {decodeError}. Please try re-uploading the mapping file.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Karigar Mapping fetch error */}
-      {mappingError && mappingFetched && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div>
-              <p className="font-medium">Failed to load karigar mapping</p>
-              <p className="text-sm">{getUserFacingError(mappingError)}</p>
+      {/* Date selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Date</CardTitle>
+          <CardDescription>Choose a date to view orders</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-end gap-4">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="order-date">Date</Label>
+              <div className="relative">
+                <Input
+                  id="order-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  disabled={!isReady}
+                  className="pr-10"
+                />
+                <Calendar className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
             </div>
-          </AlertDescription>
-        </Alert>
-      )}
+          </div>
+        </CardContent>
+      </Card>
 
-      {loadingOrders ? (
+      {/* Diagnostics section */}
+      {!isLoading && (
         <Card>
-          <CardContent className="flex h-64 items-center justify-center">
-            <p className="text-muted-foreground">Loading orders...</p>
+          <CardHeader>
+            <CardTitle className="text-base">Mapping Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Mapping Loaded:</span>
+                <span className="ml-2 font-medium">
+                  {diagnostics.mappingEntries > 0 ? `Yes (${diagnostics.mappingEntries} entries)` : 'No'}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Total Orders:</span>
+                <span className="ml-2 font-medium">{diagnostics.totalOrders}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Matched Orders:</span>
+                <span className="ml-2 font-medium text-green-600 dark:text-green-400">
+                  {diagnostics.matchedOrders}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Unmapped Orders:</span>
+                <span className="ml-2 font-medium text-orange-600 dark:text-orange-400">
+                  {diagnostics.unmappedOrders}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning when mapping loaded but nothing matches */}
+            {diagnostics.hasMappingButNoMatches && (
+              <Alert className="border-orange-500 bg-orange-50 text-orange-900 dark:bg-orange-950 dark:text-orange-100">
+                <Info className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-medium">A mapping is loaded but no orders match. This may indicate:</p>
+                    <ul className="list-inside list-disc space-y-1 text-sm">
+                      <li>Design codes in orders don't match those in the mapping file</li>
+                      <li>Different formatting (spaces, dashes, case) between files</li>
+                      <li>The mapping file may need to be re-uploaded with correct design codes</li>
+                    </ul>
+                    
+                    {/* Enhanced diagnostics */}
+                    <div className="mt-3 space-y-2 border-t border-orange-200 pt-3 dark:border-orange-800">
+                      <p className="text-xs font-semibold">Debug Information:</p>
+                      <div className="space-y-1 text-xs">
+                        <div>
+                          <span className="font-medium">Distinct order designs:</span> {diagnostics.distinctOrderDesigns}
+                        </div>
+                        {diagnostics.orderKeysSample.length > 0 && (
+                          <div>
+                            <span className="font-medium">Sample normalized order keys:</span>
+                            <div className="ml-2 font-mono text-[10px]">
+                              {diagnostics.orderKeysSample.join(', ')}
+                            </div>
+                          </div>
+                        )}
+                        {diagnostics.mappingSample.length > 0 && (
+                          <div>
+                            <span className="font-medium">Sample normalized mapping keys:</span>
+                            <div className="ml-2 font-mono text-[10px]">
+                              {diagnostics.mappingSample.join(', ')}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
-      ) : ordersError ? (
-        // Don't show "No orders" when there's an error
-        null
+      )}
+
+      {/* Orders display */}
+      {isLoading ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">Loading orders...</p>
+          </CardContent>
+        </Card>
       ) : enrichedOrders.length === 0 ? (
         <Card>
-          <CardContent className="flex h-64 flex-col items-center justify-center gap-4">
-            <AlertCircle className="h-12 w-12 text-muted-foreground" />
-            <div className="text-center">
-              <p className="font-medium">No orders for {format(new Date(selectedDate), 'MMM dd, yyyy')}</p>
-              <p className="text-sm text-muted-foreground">Upload orders in the Daily Order Upload tab</p>
-            </div>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">No orders found for {selectedDate}</p>
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Karigar Filter */}
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium">Filter by Karigar:</label>
-                <Select value={selectedKarigar} onValueChange={setSelectedKarigar}>
-                  <SelectTrigger className="w-64">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Karigars ({enrichedOrders.length} orders)</SelectItem>
-                    {karigars.map((karigar) => (
-                      <SelectItem key={karigar} value={karigar}>
-                        {karigar} ({ordersByKarigar.get(karigar)?.length || 0} orders)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Selection Actions Bar */}
-          {filteredOrders.length > 0 && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Button variant="outline" size="sm" onClick={handleSelectAll}>
-                      {allSelected ? 'Deselect All' : 'Select All'}
-                    </Button>
-                    {selectedOrderIds.size > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        {selectedOrderIds.size} order{selectedOrderIds.size !== 1 ? 's' : ''} selected
-                      </span>
-                    )}
-                  </div>
-                  {selectedOrderIds.size > 0 && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" disabled={removeOrders.isPending}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Remove Selected
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove Orders</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to remove {selectedOrderIds.size} order{selectedOrderIds.size !== 1 ? 's' : ''}? 
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleRemoveSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Remove
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Orders grouped by Karigar */}
-          <KarigarOrderGroups
-            orders={filteredOrders}
-            ordersByKarigar={ordersByKarigar}
-            selectedKarigar={selectedKarigar}
-            selectedOrderIds={selectedOrderIds}
-            onToggleSelection={handleToggleSelection}
-            selectedDate={selectedDate}
-          />
-        </>
+        <KarigarOrderGroups
+          orders={enrichedOrders}
+          ordersByKarigar={ordersByKarigar}
+          selectedKarigar={selectedKarigar}
+          selectedOrderIds={selectedOrderIds}
+          onToggleSelection={handleToggleSelection}
+          selectedDate={selectedDate}
+        />
       )}
     </div>
   );
