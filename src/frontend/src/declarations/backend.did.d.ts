@@ -10,22 +10,52 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface DailyOrder {
+  'weight' : string,
+  'size' : string,
+  'design' : string,
+  'orderNo' : string,
+  'quantity' : string,
+  'remarks' : string,
+}
 export type Date = string;
+export type ExternalBlob = Uint8Array;
 export interface KarigarAssignment {
   'karigar' : string,
   'orderId' : string,
   'factory' : [] | [string],
 }
-export interface Order {
-  'design' : string,
-  'orderId' : string,
-  'product' : string,
-}
 export interface UserProfile { 'name' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface _CaffeineStorageCreateCertificateResult {
+  'method' : string,
+  'blob_hash' : string,
+}
+export interface _CaffeineStorageRefillInformation {
+  'proposed_top_up_amount' : [] | [bigint],
+}
+export interface _CaffeineStorageRefillResult {
+  'success' : [] | [boolean],
+  'topped_up_amount' : [] | [bigint],
+}
 export interface _SERVICE {
+  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
+  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+    [Array<Uint8Array>],
+    undefined
+  >,
+  '_caffeineStorageCreateCertificate' : ActorMethod<
+    [string],
+    _CaffeineStorageCreateCertificateResult
+  >,
+  '_caffeineStorageRefillCashier' : ActorMethod<
+    [[] | [_CaffeineStorageRefillInformation]],
+    _CaffeineStorageRefillResult
+  >,
+  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'assignKarigar' : ActorMethod<
@@ -34,30 +64,15 @@ export interface _SERVICE {
   >,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  'getDailyOrders' : ActorMethod<[Date], Array<Order>>,
+  'getDailyOrders' : ActorMethod<[Date], Array<DailyOrder>>,
   'getKarigarAssignments' : ActorMethod<[Date], Array<KarigarAssignment>>,
-  'getKarigarAssignmentsForDesign' : ActorMethod<
-    [string],
-    Array<[string, string]>
-  >,
-  'getKarigarForDesign' : ActorMethod<[string, string], [] | [string]>,
-  'getKarigarMappingSheet' : ActorMethod<
-    [string],
-    [] | [Array<[string, string]>]
-  >,
-  'getKarigarMappingWorkbook' : ActorMethod<
-    [],
-    Array<[string, Array<[string, string]>]>
-  >,
-  'getOrdersByKarigar' : ActorMethod<[Date, string], Array<Order>>,
+  'getKarigarMappingWorkbook' : ActorMethod<[], [] | [ExternalBlob]>,
+  'getOrdersByKarigar' : ActorMethod<[Date, string], Array<DailyOrder>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  'saveKarigarMappingWorkbook' : ActorMethod<
-    [Array<[string, Array<[string, string]>]>],
-    undefined
-  >,
-  'storeDailyOrders' : ActorMethod<[Date, Array<Order>], undefined>,
+  'saveKarigarMappingWorkbook' : ActorMethod<[ExternalBlob], undefined>,
+  'storeDailyOrders' : ActorMethod<[Date, Array<DailyOrder>], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

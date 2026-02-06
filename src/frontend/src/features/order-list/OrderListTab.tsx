@@ -1,46 +1,81 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { Calendar, AlertCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useGetDailyOrders, useGetKarigarAssignments, useGetKarigarMappingWorkbook } from '@/hooks/useQueries';
-import FactoryKarigarGroups from '../daily-orders/components/FactoryKarigarGroups';
-import ExportPanel from '../daily-orders/components/ExportPanel';
-import type { ParsedOrder } from '../daily-orders/excel/parseDailyOrders';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useGetDailyOrders, useGetKarigarMappingWorkbook, useRemoveOrders } from '@/hooks/useQueries';
+import { useActorWithStatus } from '@/hooks/useActorWithStatus';
+import { decodeBlobToMapping } from '../karigar-mapping/karigarMappingBlobCodec';
+import KarigarOrderGroups from './components/KarigarOrderGroups';
+import { getUserFacingError } from '@/utils/userFacingError';
+import { normalizeDesignCode } from '@/utils/textNormalize';
 
 export default function OrderListTab() {
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [selectedFactory, setSelectedFactory] = useState<string | null>(null);
-  const [selectedKarigar, setSelectedKarigar] = useState<string | null>(null);
+  // Initialize date from session storage (synced with Daily Orders upload) or default to today
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const lastUploadDate = sessionStorage.getItem('lastUploadDate');
+    return lastUploadDate || format(new Date(), 'yyyy-MM-dd');
+  });
+  const [selectedKarigar, setSelectedKarigar] = useState<string>('all');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [mappingData, setMappingData] = useState<any>(null);
 
-  // Swipe state
-  const touchStartX = useRef<number>(0);
-  const touchEndX = useRef<number>(0);
+  const { isReady } = useActorWithStatus();
+  const { 
+    data: savedOrders = [], 
+    isLoading: loadingOrders, 
+    error: ordersError,
+    isFetched: ordersFetched 
+  } = useGetDailyOrders(selectedDate);
+  const { 
+    data: mappingBlob, 
+    error: mappingError,
+    isFetched: mappingFetched 
+  } = useGetKarigarMappingWorkbook();
+  const removeOrders = useRemoveOrders();
 
-  const { data: savedOrders = [], isLoading: loadingOrders } = useGetDailyOrders(selectedDate);
-  const { data: assignments = [] } = useGetKarigarAssignments(selectedDate);
-  const { data: mappingWorkbook = [] } = useGetKarigarMappingWorkbook();
+  // Persist selected date to session storage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('lastUploadDate', selectedDate);
+  }, [selectedDate]);
 
-  // Build mapping lookup from workbook (sheets 1 & 3 priority)
+  // Load mapping data from blob
+  useEffect(() => {
+    if (mappingBlob) {
+      decodeBlobToMapping(mappingBlob)
+        .then(setMappingData)
+        .catch((err) => {
+          console.error('Failed to decode mapping:', err);
+          setMappingData(null);
+        });
+    } else {
+      setMappingData(null);
+    }
+  }, [mappingBlob]);
+
+  // Build normalized mapping lookup from decoded data
   const mappingLookup = useMemo(() => {
     const lookup = new Map<string, { karigar: string; genericName?: string }>();
     
+    if (!mappingData) return lookup;
+
     // Process sheets in priority order: 1, 3, then 2
     const sheetPriority = ['1', '3', '2'];
     
     for (const sheetName of sheetPriority) {
-      const sheet = mappingWorkbook.find(([name]) => name === sheetName);
-      if (sheet) {
-        const [, entries] = sheet;
-        entries.forEach(([design, data]) => {
-          if (!lookup.has(design)) {
-            // Parse data: "karigar|genericName" or just "karigar"
-            const parts = data.split('|');
-            lookup.set(design, { 
-              karigar: parts[0],
-              genericName: parts[1] || undefined
+      const sheet = mappingData[sheetName];
+      if (sheet && sheet.entries) {
+        sheet.entries.forEach((entry: any) => {
+          // Use the normalized design code from the mapping entry
+          const normalizedDesign = entry.designNormalized || normalizeDesignCode(entry.design);
+          if (!lookup.has(normalizedDesign)) {
+            lookup.set(normalizedDesign, {
+              karigar: entry.karigar,
+              genericName: entry.genericName,
             });
           }
         });
@@ -48,105 +83,115 @@ export default function OrderListTab() {
     }
     
     return lookup;
-  }, [mappingWorkbook]);
+  }, [mappingData]);
 
-  // Convert saved orders to ParsedOrder format
-  const currentOrders = useMemo(() => {
-    return savedOrders.map((o) => ({
-      orderNo: o.orderId,
-      design: o.design || o.product,
-      weight: '',
-      size: '',
-      quantity: '',
-      remarks: '',
-    }));
-  }, [savedOrders]);
+  // Convert saved orders to enriched format with mapping data
+  const enrichedOrders = useMemo(() => {
+    return savedOrders.map((o) => {
+      // Normalize the order's design code for lookup
+      const normalizedDesign = normalizeDesignCode(o.design);
+      const mapping = mappingLookup.get(normalizedDesign);
+      
+      return {
+        orderNo: o.orderNo,
+        design: o.design, // Keep original for display
+        weight: o.weight || '',
+        size: o.size || '',
+        quantity: o.quantity || '',
+        remarks: o.remarks || '',
+        karigar: mapping?.karigar,
+        genericName: mapping?.genericName,
+      };
+    });
+  }, [savedOrders, mappingLookup]);
 
-  // Group orders by factory
-  const ordersByFactory = useMemo(() => {
-    const groups = new Map<string, ParsedOrder[]>();
-    const assignmentMap = new Map(assignments.map((a) => [a.orderId, a]));
-
-    currentOrders.forEach((order) => {
-      const assignment = assignmentMap.get(order.orderNo);
-      const factory = assignment?.factory || 'No Factory';
-      if (!groups.has(factory)) {
-        groups.set(factory, []);
+  // Group orders by karigar (from mapping)
+  const ordersByKarigar = useMemo(() => {
+    const groups = new Map<string, typeof enrichedOrders>();
+    
+    enrichedOrders.forEach((order) => {
+      const karigar = order.karigar || 'Unmapped';
+      if (!groups.has(karigar)) {
+        groups.set(karigar, []);
       }
-      groups.get(factory)!.push(order);
+      groups.get(karigar)!.push(order);
     });
 
     return groups;
-  }, [currentOrders, assignments]);
+  }, [enrichedOrders]);
 
-  // Get sorted factory list
-  const factories = useMemo(() => {
-    const factoryList = Array.from(ordersByFactory.keys()).sort((a, b) => {
-      if (a === 'No Factory') return 1;
-      if (b === 'No Factory') return -1;
+  // Get sorted karigar list
+  const karigars = useMemo(() => {
+    const karigarList = Array.from(ordersByKarigar.keys()).sort((a, b) => {
+      if (a === 'Unmapped') return 1;
+      if (b === 'Unmapped') return -1;
       return a.localeCompare(b);
     });
-    return factoryList;
-  }, [ordersByFactory]);
+    return karigarList;
+  }, [ordersByKarigar]);
 
-  // Auto-select first factory when factories change
+  // Filter orders by selected karigar
+  const filteredOrders = useMemo(() => {
+    if (selectedKarigar === 'all') return enrichedOrders;
+    return enrichedOrders.filter((o) => (o.karigar || 'Unmapped') === selectedKarigar);
+  }, [enrichedOrders, selectedKarigar]);
+
+  // Clear selections when date or karigar changes
   useEffect(() => {
-    if (factories.length > 0 && !selectedFactory) {
-      setSelectedFactory(factories[0]);
-    } else if (factories.length > 0 && selectedFactory && !factories.includes(selectedFactory)) {
-      setSelectedFactory(factories[0]);
-    } else if (factories.length === 0) {
-      setSelectedFactory(null);
-    }
-  }, [factories, selectedFactory]);
+    setSelectedOrderIds(new Set());
+  }, [selectedDate, selectedKarigar]);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
-    setSelectedFactory(null);
-    setSelectedKarigar(null);
+    setSelectedKarigar('all');
+    setSelectedOrderIds(new Set());
   };
 
-  // Swipe handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (!selectedFactory || factories.length <= 1) return;
-
-    const swipeThreshold = 50;
-    const diff = touchStartX.current - touchEndX.current;
-
-    if (Math.abs(diff) > swipeThreshold) {
-      const currentIndex = factories.indexOf(selectedFactory);
-      if (diff > 0 && currentIndex < factories.length - 1) {
-        setSelectedFactory(factories[currentIndex + 1]);
-      } else if (diff < 0 && currentIndex > 0) {
-        setSelectedFactory(factories[currentIndex - 1]);
+  const handleToggleSelection = (orderId: string) => {
+    setSelectedOrderIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
       }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    const allOrderIds = filteredOrders.map((o) => o.orderNo);
+    const allSelected = allOrderIds.every((id) => selectedOrderIds.has(id));
+    
+    if (allSelected) {
+      setSelectedOrderIds(new Set());
+    } else {
+      setSelectedOrderIds(new Set(allOrderIds));
     }
   };
 
-  const navigateFactory = (direction: 'prev' | 'next') => {
-    if (!selectedFactory || factories.length <= 1) return;
-    const currentIndex = factories.indexOf(selectedFactory);
-    if (direction === 'prev' && currentIndex > 0) {
-      setSelectedFactory(factories[currentIndex - 1]);
-    } else if (direction === 'next' && currentIndex < factories.length - 1) {
-      setSelectedFactory(factories[currentIndex + 1]);
+  const handleRemoveSelected = async () => {
+    if (selectedOrderIds.size === 0) return;
+    
+    try {
+      await removeOrders.mutateAsync({
+        date: selectedDate,
+        orderIds: Array.from(selectedOrderIds),
+      });
+      setSelectedOrderIds(new Set());
+    } catch (error) {
+      console.error('Failed to remove orders:', error);
     }
   };
+
+  const allSelected = filteredOrders.length > 0 && filteredOrders.every((o) => selectedOrderIds.has(o.orderNo));
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Order List</h2>
-          <p className="text-muted-foreground">View orders filtered by factory and karigar</p>
+          <p className="text-muted-foreground">View orders grouped by karigar from mapping</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -159,17 +204,42 @@ export default function OrderListTab() {
               className="w-40"
             />
           </div>
-          {selectedFactory && (
-            <ExportPanel
-              selectedDate={selectedDate}
-              selectedFactory={selectedFactory}
-              ordersByFactory={ordersByFactory}
-              assignments={assignments}
-              mappingLookup={mappingLookup}
-            />
-          )}
         </div>
       </div>
+
+      {/* Actor loading state */}
+      {!isReady && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Connecting to backend...</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Daily Orders fetch error */}
+      {ordersError && ordersFetched && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <div>
+              <p className="font-medium">Failed to load daily orders</p>
+              <p className="text-sm">{getUserFacingError(ordersError)}</p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Karigar Mapping fetch error */}
+      {mappingError && mappingFetched && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <div>
+              <p className="font-medium">Failed to load karigar mapping</p>
+              <p className="text-sm">{getUserFacingError(mappingError)}</p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {loadingOrders ? (
         <Card>
@@ -177,7 +247,10 @@ export default function OrderListTab() {
             <p className="text-muted-foreground">Loading orders...</p>
           </CardContent>
         </Card>
-      ) : currentOrders.length === 0 ? (
+      ) : ordersError ? (
+        // Don't show "No orders" when there's an error
+        null
+      ) : enrichedOrders.length === 0 ? (
         <Card>
           <CardContent className="flex h-64 flex-col items-center justify-center gap-4">
             <AlertCircle className="h-12 w-12 text-muted-foreground" />
@@ -187,58 +260,85 @@ export default function OrderListTab() {
             </div>
           </CardContent>
         </Card>
-      ) : selectedFactory ? (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigateFactory('prev')}
-                disabled={factories.indexOf(selectedFactory) === 0}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex-1 text-center">
-                <CardTitle>{selectedFactory}</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Factory {factories.indexOf(selectedFactory) + 1} of {factories.length}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigateFactory('next')}
-                disabled={factories.indexOf(selectedFactory) === factories.length - 1}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            <FactoryKarigarGroups
-              factory={selectedFactory}
-              orders={ordersByFactory.get(selectedFactory) || []}
-              assignments={assignments}
-              selectedOrderIds={new Set()}
-              onToggleSelection={() => {}}
-              selectedDate={selectedDate}
-              mappingLookup={mappingLookup}
-              showDownloadButtons={true}
-              selectedKarigar={selectedKarigar}
-              onSelectKarigar={setSelectedKarigar}
-            />
-          </CardContent>
-        </Card>
       ) : (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>No factory selected</AlertDescription>
-        </Alert>
+        <>
+          {/* Karigar Filter */}
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium">Filter by Karigar:</label>
+                <Select value={selectedKarigar} onValueChange={setSelectedKarigar}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Karigars ({enrichedOrders.length} orders)</SelectItem>
+                    {karigars.map((karigar) => (
+                      <SelectItem key={karigar} value={karigar}>
+                        {karigar} ({ordersByKarigar.get(karigar)?.length || 0} orders)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Selection Actions Bar */}
+          {filteredOrders.length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                      {allSelected ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    {selectedOrderIds.size > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        {selectedOrderIds.size} order{selectedOrderIds.size !== 1 ? 's' : ''} selected
+                      </span>
+                    )}
+                  </div>
+                  {selectedOrderIds.size > 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" disabled={removeOrders.isPending}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remove Selected
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove Orders</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to remove {selectedOrderIds.size} order{selectedOrderIds.size !== 1 ? 's' : ''}? 
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleRemoveSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Remove
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Orders grouped by Karigar */}
+          <KarigarOrderGroups
+            orders={filteredOrders}
+            ordersByKarigar={ordersByKarigar}
+            selectedKarigar={selectedKarigar}
+            selectedOrderIds={selectedOrderIds}
+            onToggleSelection={handleToggleSelection}
+            selectedDate={selectedDate}
+          />
+        </>
       )}
     </div>
   );

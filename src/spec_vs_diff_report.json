@@ -1,65 +1,34 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T04:10:11.262Z",
-  "summary": "The BuildRequest contains no stated requirements or acceptance criteria. The diff introduces substantial new backend authorization/data APIs and multiple frontend UI features (tabs, daily orders workflow, karigar mapping upload/parsing, exporting), none of which were requested in the provided BuildRequest.",
-  "missing_requirements": [],
-  "hallucinated_features": [
+  "generatedAt": "2026-02-06T14:58:25.613Z",
+  "summary": "Diff implements a more robust Daily Order Upload parser (header-row detection, expanded header aliases, hidden/whitespace normalization, CSV handling) and adds UI state for parse warnings/errors vs save errors. However, due to truncation in the DailyOrdersPage upload handler, some REQ-51 acceptance-criteria behaviors (file input reset on parse failure; preserving parsed rows on save failure) cannot be confirmed from the provided diff excerpt.",
+  "missing_requirements": [
     {
-      "description": "Backend access control integration and permission-gated APIs for user profiles, storing daily orders, assigning karigars, and reading orders/assignments.",
-      "reason": "No requirements were provided, yet new authorization/stateful backend behaviors were implemented.",
+      "id": "REQ-51",
+      "requirement": "If parsing fails, the UI shows an English parsing error and does not crash; the file input is reset so the user can retry.",
+      "reason": "The provided DailyOrdersPage.tsx excerpt shows resetting the file input when the backend is not ready, but the parse-failure catch/finally path is not visible in the truncated diff, so it cannot be verified that the input is reset on parsing failure.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx (truncated)"
       ]
     },
     {
-      "description": "Frontend app shell with sidebar navigation and three tabs (Order List, Daily Order Upload, Karigar Mapping) and updated header/footer branding.",
-      "reason": "Not requested; BuildRequest listed no requirements.",
+      "id": "REQ-51",
+      "requirement": "If parsing succeeds but storing to the backend fails, the parsed orders remain visible in the UI and an English 'saving failed' error is shown (separate from parsing errors).",
+      "reason": "State for saveError vs parseError is present and the code indicates a nested 'Try to save to backend' block, but the actual save failure handling and whether uploadedOrders remains populated is not visible in the truncated portion.",
       "evidence": [
-        "frontend/src/App.tsx"
-      ]
-    },
-    {
-      "description": "Daily orders page workflow including date selection, upload/parse, assignment UI, filtering, factory grouping, swipe support, and export controls.",
-      "reason": "Not requested; BuildRequest listed no requirements.",
-      "evidence": [
-        "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-        "frontend/src/features/daily-orders/components/OrdersTable.tsx",
-        "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
-        "frontend/src/features/daily-orders/components/ExportPanel.tsx"
-      ]
-    },
-    {
-      "description": "Karigar mapping upload tab and parsing of mapping from Excel/PDF with sheet priority and column detection.",
-      "reason": "Not requested; BuildRequest listed no requirements.",
-      "evidence": [
-        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
-      ]
-    },
-    {
-      "description": "HTML-based export generators for factory-wide and per-karigar downloads (despite file names suggesting PDF).",
-      "reason": "Not requested; BuildRequest listed no requirements.",
-      "evidence": [
-        "frontend/src/features/daily-orders/pdf/exportFactoryHtml.ts",
-        "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts"
+        "frontend/src/features/daily-orders/DailyOrdersPage.tsx (truncated)"
       ]
     }
   ],
-  "confidence": 0.78,
+  "hallucinated_features": [],
+  "confidence": 0.6,
   "changed_files": [
-    "backend/main.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/App.tsx",
     "frontend/src/features/daily-orders/DailyOrdersPage.tsx",
-    "frontend/src/features/daily-orders/components/ExportPanel.tsx",
-    "frontend/src/features/daily-orders/components/FactoryKarigarGroups.tsx",
-    "frontend/src/features/daily-orders/components/OrdersTable.tsx",
-    "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-    "frontend/src/features/daily-orders/pdf/exportFactoryHtml.ts",
-    "frontend/src/features/daily-orders/pdf/exportKarigarPdf.ts",
-    "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-    "frontend/src/features/order-list/OrderListTab.tsx",
+    "frontend/src/features/daily-orders/excel/parseDailyOrders.ts",
+    "frontend/src/utils/textNormalize.ts",
+    "frontend/src/utils/userFacingError.ts",
     "project_state.json"
   ]
 }

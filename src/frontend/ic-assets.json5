@@ -1,0 +1,17 @@
+[
+  {
+    "match": "index.html",
+    "cache": {
+      "max_age": 0
+    },
+    "headers": {
+      "Cache-Control": "no-cache, no-store, must-revalidate"
+    }
+  },
+  {
+    "match": "**/*",
+    "cache": {
+      "max_age": 31536000
+    }
+  }
+]

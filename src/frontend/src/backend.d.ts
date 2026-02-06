@@ -7,19 +7,29 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export type Date_ = string;
-export interface Order {
+export class ExternalBlob {
+    getBytes(): Promise<Uint8Array<ArrayBuffer>>;
+    getDirectURL(): string;
+    static fromURL(url: string): ExternalBlob;
+    static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
+    withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
+}
+export interface DailyOrder {
+    weight: string;
+    size: string;
     design: string;
-    orderId: string;
-    product: string;
+    orderNo: string;
+    quantity: string;
+    remarks: string;
 }
-export interface UserProfile {
-    name: string;
-}
+export type Date_ = string;
 export interface KarigarAssignment {
     karigar: string;
     orderId: string;
     factory?: string;
+}
+export interface UserProfile {
+    name: string;
 }
 export enum UserRole {
     admin = "admin",
@@ -31,16 +41,13 @@ export interface backendInterface {
     assignKarigar(date: Date_, orderIds: Array<string>, karigar: string, factory: string | null): Promise<void>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    getDailyOrders(date: Date_): Promise<Array<Order>>;
+    getDailyOrders(date: Date_): Promise<Array<DailyOrder>>;
     getKarigarAssignments(date: Date_): Promise<Array<KarigarAssignment>>;
-    getKarigarAssignmentsForDesign(design: string): Promise<Array<[string, string]>>;
-    getKarigarForDesign(sheetName: string, design: string): Promise<string | null>;
-    getKarigarMappingSheet(sheetName: string): Promise<Array<[string, string]> | null>;
-    getKarigarMappingWorkbook(): Promise<Array<[string, Array<[string, string]>]>>;
-    getOrdersByKarigar(date: Date_, karigar: string): Promise<Array<Order>>;
+    getKarigarMappingWorkbook(): Promise<ExternalBlob | null>;
+    getOrdersByKarigar(date: Date_, karigar: string): Promise<Array<DailyOrder>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    saveKarigarMappingWorkbook(workbook: Array<[string, Array<[string, string]>]>): Promise<void>;
-    storeDailyOrders(date: Date_, orders: Array<Order>): Promise<void>;
+    saveKarigarMappingWorkbook(blob: ExternalBlob): Promise<void>;
+    storeDailyOrders(date: Date_, orders: Array<DailyOrder>): Promise<void>;
 }

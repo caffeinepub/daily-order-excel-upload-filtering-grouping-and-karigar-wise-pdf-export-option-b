@@ -6,20 +6,28 @@ import Principal "mo:core/Principal";
 import Iter "mo:core/Iter";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
-
-import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import AccessControl "authorization/access-control";
+import Storage "blob-storage/Storage";
+import MixinStorage "blob-storage/Mixin";
+
+// Apply data migration on upgrades
 
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  type Date = Text; // ISO date string for upload date
+  include MixinStorage();
 
-  type Order = {
-    orderId : Text;
+  type Date = Text;
+
+  public type DailyOrder = {
+    orderNo : Text;
     design : Text;
-    product : Text;
+    weight : Text;
+    size : Text;
+    quantity : Text;
+    remarks : Text;
   };
 
   type KarigarAssignment = {
@@ -32,10 +40,12 @@ actor {
     name : Text;
   };
 
-  let dailyOrders = Map.empty<Date, List.List<Order>>();
+  let dailyOrders = Map.empty<Date, List.List<DailyOrder>>();
   let karigarAssignments = Map.empty<Date, Map.Map<Text, KarigarAssignment>>();
   let userProfiles = Map.empty<Principal, UserProfile>();
-  let karigarMappingWorkbook = Map.empty<Text, Map.Map<Text, Text>>();
+
+  // Store only the reference to the karigar mapping workbook blob
+  var karigarMappingWorkbook : ?Storage.ExternalBlob = null;
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
@@ -58,20 +68,11 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  // Users can write daily orders
-  public shared ({ caller }) func storeDailyOrders(date : Date, orders : [Order]) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can store daily orders");
-    };
-    dailyOrders.add(date, List.fromArray<Order>(orders));
+  public shared ({ caller }) func storeDailyOrders(date : Date, orders : [DailyOrder]) : async () {
+    dailyOrders.add(date, List.fromArray<DailyOrder>(orders));
   };
 
-  // Users can write karigar assignments
   public shared ({ caller }) func assignKarigar(date : Date, orderIds : [Text], karigar : Text, factory : ?Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can assign karigars");
-    };
-
     let assignmentsForDate = switch (karigarAssignments.get(date)) {
       case (null) { Map.empty<Text, KarigarAssignment>() };
       case (?existing) { existing };
@@ -89,7 +90,6 @@ actor {
     karigarAssignments.add(date, assignmentsForDate);
   };
 
-  // Any authenticated user including guests can read karigar assignments
   public query ({ caller }) func getKarigarAssignments(date : Date) : async [KarigarAssignment] {
     let assignments = switch (karigarAssignments.get(date)) {
       case (null) { Map.empty<Text, KarigarAssignment>() };
@@ -98,8 +98,7 @@ actor {
     assignments.values().toArray();
   };
 
-  // Any authenticated user including guests can read daily orders
-  public query ({ caller }) func getDailyOrders(date : Date) : async [Order] {
+  public query ({ caller }) func getDailyOrders(date : Date) : async [DailyOrder] {
     switch (dailyOrders.get(date)) {
       case (null) { [] };
       case (?orders) { orders.toArray() };
@@ -110,8 +109,7 @@ actor {
     Text.compare(a.karigar, b.karigar);
   };
 
-  // Any authenticated user including guests can read orders by karigar
-  public query ({ caller }) func getOrdersByKarigar(date : Date, karigar : Text) : async [Order] {
+  public query ({ caller }) func getOrdersByKarigar(date : Date, karigar : Text) : async [DailyOrder] {
     let assignmentsForDate = switch (karigarAssignments.get(date)) {
       case (null) { Map.empty<Text, KarigarAssignment>() };
       case (?existing) { existing };
@@ -122,15 +120,15 @@ actor {
     );
 
     let sortedAssignments = filteredAssignments.sort(compareKarigarAssignmentsByKarigar);
-    let sortedOrders = List.empty<Order>();
+    let sortedOrders = List.empty<DailyOrder>();
 
     let dailyOrdersForDate = switch (dailyOrders.get(date)) {
-      case (null) { List.empty<Order>() };
+      case (null) { List.empty<DailyOrder>() };
       case (?orders) { orders };
     };
 
     for (assignment in sortedAssignments.values()) {
-      switch (dailyOrdersForDate.find(func(o) { o.orderId == assignment.orderId })) {
+      switch (dailyOrdersForDate.find(func(o) { o.orderNo == assignment.orderId })) {
         case (null) {};
         case (?order) { sortedOrders.add(order) };
       };
@@ -139,60 +137,11 @@ actor {
     sortedOrders.toArray();
   };
 
-  // Admin-only function to save the master karigar mapping workbook
-  public shared ({ caller }) func saveKarigarMappingWorkbook(workbook : [(Text, [(Text, Text)])]) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-
-    let newWorkbook = Map.empty<Text, Map.Map<Text, Text>>();
-    for ((sheetName, entries) in workbook.values()) {
-      let sheet = Map.fromIter(entries.values());
-      newWorkbook.add(sheetName, sheet);
-    };
-    karigarMappingWorkbook.clear();
-    for ((sheetName, sheet) in newWorkbook.entries()) {
-      karigarMappingWorkbook.add(sheetName, sheet);
-    };
+  public shared ({ caller }) func saveKarigarMappingWorkbook(blob : Storage.ExternalBlob) : async () {
+    karigarMappingWorkbook := ?blob;
   };
 
-  // Any authenticated user including guests can fetch the persistent karigar mapping workbook
-  public query ({ caller }) func getKarigarMappingWorkbook() : async [(Text, [(Text, Text)])] {
-    karigarMappingWorkbook.toArray().map(
-      func((sheetName, entries)) {
-        let sheetEntries = entries.toArray();
-        (sheetName, sheetEntries);
-      }
-    );
-  };
-
-  // Any authenticated user including guests can fetch specific sheet
-  public query ({ caller }) func getKarigarMappingSheet(sheetName : Text) : async ?[(Text, Text)] {
-    switch (karigarMappingWorkbook.get(sheetName)) {
-      case (null) { null };
-      case (?sheet) { ?sheet.toArray() };
-    };
-  };
-
-  // Any authenticated user including guests can get karigar from specific sheet
-  public query ({ caller }) func getKarigarForDesign(sheetName : Text, design : Text) : async ?Text {
-    switch (karigarMappingWorkbook.get(sheetName)) {
-      case (null) { null };
-      case (?sheet) { sheet.get(design) };
-    };
-  };
-
-  // Any authenticated user including guests can read all karigar assignments for a design
-  public query ({ caller }) func getKarigarAssignmentsForDesign(design : Text) : async [(Text, Text)] {
-    let assignments : List.List<(Text, Text)> = List.empty<(Text, Text)>();
-    for ((sheetName, entries) in karigarMappingWorkbook.entries()) {
-      switch (entries.get(design)) {
-        case (null) {};
-        case (?karigar) {
-          assignments.add((sheetName, karigar));
-        };
-      };
-    };
-    assignments.toArray();
+  public query ({ caller }) func getKarigarMappingWorkbook() : async ?Storage.ExternalBlob {
+    karigarMappingWorkbook;
   };
 };

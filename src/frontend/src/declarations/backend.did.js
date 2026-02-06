@@ -8,6 +8,17 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  'method' : IDL.Text,
+  'blob_hash' : IDL.Text,
+});
+export const _CaffeineStorageRefillInformation = IDL.Record({
+  'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const _CaffeineStorageRefillResult = IDL.Record({
+  'success' : IDL.Opt(IDL.Bool),
+  'topped_up_amount' : IDL.Opt(IDL.Nat),
+});
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
@@ -15,18 +26,48 @@ export const UserRole = IDL.Variant({
 });
 export const Date = IDL.Text;
 export const UserProfile = IDL.Record({ 'name' : IDL.Text });
-export const Order = IDL.Record({
+export const DailyOrder = IDL.Record({
+  'weight' : IDL.Text,
+  'size' : IDL.Text,
   'design' : IDL.Text,
-  'orderId' : IDL.Text,
-  'product' : IDL.Text,
+  'orderNo' : IDL.Text,
+  'quantity' : IDL.Text,
+  'remarks' : IDL.Text,
 });
 export const KarigarAssignment = IDL.Record({
   'karigar' : IDL.Text,
   'orderId' : IDL.Text,
   'factory' : IDL.Opt(IDL.Text),
 });
+export const ExternalBlob = IDL.Vec(IDL.Nat8);
 
 export const idlService = IDL.Service({
+  '_caffeineStorageBlobIsLive' : IDL.Func(
+      [IDL.Vec(IDL.Nat8)],
+      [IDL.Bool],
+      ['query'],
+    ),
+  '_caffeineStorageBlobsToDelete' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      ['query'],
+    ),
+  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      [],
+      [],
+    ),
+  '_caffeineStorageCreateCertificate' : IDL.Func(
+      [IDL.Text],
+      [_CaffeineStorageCreateCertificateResult],
+      [],
+    ),
+  '_caffeineStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_CaffeineStorageRefillInformation)],
+      [_CaffeineStorageRefillResult],
+      [],
+    ),
+  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'assignKarigar' : IDL.Func(
@@ -36,35 +77,20 @@ export const idlService = IDL.Service({
     ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-  'getDailyOrders' : IDL.Func([Date], [IDL.Vec(Order)], ['query']),
+  'getDailyOrders' : IDL.Func([Date], [IDL.Vec(DailyOrder)], ['query']),
   'getKarigarAssignments' : IDL.Func(
       [Date],
       [IDL.Vec(KarigarAssignment)],
       ['query'],
     ),
-  'getKarigarAssignmentsForDesign' : IDL.Func(
-      [IDL.Text],
-      [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))],
-      ['query'],
-    ),
-  'getKarigarForDesign' : IDL.Func(
-      [IDL.Text, IDL.Text],
-      [IDL.Opt(IDL.Text)],
-      ['query'],
-    ),
-  'getKarigarMappingSheet' : IDL.Func(
-      [IDL.Text],
-      [IDL.Opt(IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)))],
-      ['query'],
-    ),
   'getKarigarMappingWorkbook' : IDL.Func(
       [],
-      [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
+      [IDL.Opt(ExternalBlob)],
       ['query'],
     ),
   'getOrdersByKarigar' : IDL.Func(
       [Date, IDL.Text],
-      [IDL.Vec(Order)],
+      [IDL.Vec(DailyOrder)],
       ['query'],
     ),
   'getUserProfile' : IDL.Func(
@@ -74,17 +100,24 @@ export const idlService = IDL.Service({
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-  'saveKarigarMappingWorkbook' : IDL.Func(
-      [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
-      [],
-      [],
-    ),
-  'storeDailyOrders' : IDL.Func([Date, IDL.Vec(Order)], [], []),
+  'saveKarigarMappingWorkbook' : IDL.Func([ExternalBlob], [], []),
+  'storeDailyOrders' : IDL.Func([Date, IDL.Vec(DailyOrder)], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+    'method' : IDL.Text,
+    'blob_hash' : IDL.Text,
+  });
+  const _CaffeineStorageRefillInformation = IDL.Record({
+    'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const _CaffeineStorageRefillResult = IDL.Record({
+    'success' : IDL.Opt(IDL.Bool),
+    'topped_up_amount' : IDL.Opt(IDL.Nat),
+  });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
@@ -92,18 +125,48 @@ export const idlFactory = ({ IDL }) => {
   });
   const Date = IDL.Text;
   const UserProfile = IDL.Record({ 'name' : IDL.Text });
-  const Order = IDL.Record({
+  const DailyOrder = IDL.Record({
+    'weight' : IDL.Text,
+    'size' : IDL.Text,
     'design' : IDL.Text,
-    'orderId' : IDL.Text,
-    'product' : IDL.Text,
+    'orderNo' : IDL.Text,
+    'quantity' : IDL.Text,
+    'remarks' : IDL.Text,
   });
   const KarigarAssignment = IDL.Record({
     'karigar' : IDL.Text,
     'orderId' : IDL.Text,
     'factory' : IDL.Opt(IDL.Text),
   });
+  const ExternalBlob = IDL.Vec(IDL.Nat8);
   
   return IDL.Service({
+    '_caffeineStorageBlobIsLive' : IDL.Func(
+        [IDL.Vec(IDL.Nat8)],
+        [IDL.Bool],
+        ['query'],
+      ),
+    '_caffeineStorageBlobsToDelete' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        [],
+        [],
+      ),
+    '_caffeineStorageCreateCertificate' : IDL.Func(
+        [IDL.Text],
+        [_CaffeineStorageCreateCertificateResult],
+        [],
+      ),
+    '_caffeineStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_CaffeineStorageRefillInformation)],
+        [_CaffeineStorageRefillResult],
+        [],
+      ),
+    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'assignKarigar' : IDL.Func(
@@ -113,35 +176,20 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-    'getDailyOrders' : IDL.Func([Date], [IDL.Vec(Order)], ['query']),
+    'getDailyOrders' : IDL.Func([Date], [IDL.Vec(DailyOrder)], ['query']),
     'getKarigarAssignments' : IDL.Func(
         [Date],
         [IDL.Vec(KarigarAssignment)],
         ['query'],
       ),
-    'getKarigarAssignmentsForDesign' : IDL.Func(
-        [IDL.Text],
-        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))],
-        ['query'],
-      ),
-    'getKarigarForDesign' : IDL.Func(
-        [IDL.Text, IDL.Text],
-        [IDL.Opt(IDL.Text)],
-        ['query'],
-      ),
-    'getKarigarMappingSheet' : IDL.Func(
-        [IDL.Text],
-        [IDL.Opt(IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)))],
-        ['query'],
-      ),
     'getKarigarMappingWorkbook' : IDL.Func(
         [],
-        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
+        [IDL.Opt(ExternalBlob)],
         ['query'],
       ),
     'getOrdersByKarigar' : IDL.Func(
         [Date, IDL.Text],
-        [IDL.Vec(Order)],
+        [IDL.Vec(DailyOrder)],
         ['query'],
       ),
     'getUserProfile' : IDL.Func(
@@ -151,12 +199,8 @@ export const idlFactory = ({ IDL }) => {
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-    'saveKarigarMappingWorkbook' : IDL.Func(
-        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))))],
-        [],
-        [],
-      ),
-    'storeDailyOrders' : IDL.Func([Date, IDL.Vec(Order)], [], []),
+    'saveKarigarMappingWorkbook' : IDL.Func([ExternalBlob], [], []),
+    'storeDailyOrders' : IDL.Func([Date, IDL.Vec(DailyOrder)], [], []),
   });
 };
 

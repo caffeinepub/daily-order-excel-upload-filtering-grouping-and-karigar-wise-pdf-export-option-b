@@ -1,5 +1,8 @@
+import { normalizeCellValue, normalizeHeader, matchesHeaderAlias, normalizeDesignCode } from '@/utils/textNormalize';
+
 export interface KarigarMappingEntry {
   design: string;
+  designNormalized: string; // Normalized for lookup
   karigar: string;
   genericName?: string;
 }
@@ -81,23 +84,19 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
             const row = rows[i] as any[];
             if (!row) continue;
 
-            const normalizedRow = row.map((cell) =>
-              String(cell || '').trim().toLowerCase()
-            );
-
             // Look for design/product code column
-            const designIndex = normalizedRow.findIndex((cell) =>
-              cell.includes('design') || cell.includes('product') || cell.includes('code')
+            const designIndex = row.findIndex((cell) =>
+              matchesHeaderAlias(String(cell || ''), ['design', 'product', 'code', 'design code', 'product code'])
             );
 
             // Look for karigar column
-            const karigarIndex = normalizedRow.findIndex((cell) =>
-              cell.includes('karigar') || cell.includes('artisan') || cell.includes('worker')
+            const karigarIndex = row.findIndex((cell) =>
+              matchesHeaderAlias(String(cell || ''), ['karigar', 'artisan', 'worker'])
             );
 
             // Look for name column (generic product name)
-            const nameIndex = normalizedRow.findIndex((cell) =>
-              cell === 'name' || cell.includes('product name') || cell.includes('generic')
+            const nameIndex = row.findIndex((cell) =>
+              matchesHeaderAlias(String(cell || ''), ['name', 'product name', 'generic', 'generic name'])
             );
 
             if (designIndex !== -1 && karigarIndex !== -1) {
@@ -117,10 +116,9 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
             // Try to find Name column in first row
             const firstRow = rows[0] as any[];
             if (firstRow) {
-              const normalizedRow = firstRow.map((cell) =>
-                String(cell || '').trim().toLowerCase()
+              nameColIndex = firstRow.findIndex((cell) =>
+                matchesHeaderAlias(String(cell || ''), ['name', 'product name', 'generic'])
               );
-              nameColIndex = normalizedRow.findIndex((cell) => cell === 'name');
             }
           }
 
@@ -131,21 +129,27 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
             const row = rows[i] as any[];
             if (!row || row.length === 0) continue;
 
-            const design = String(row[designColIndex] || '').trim();
-            const karigar = String(row[karigarColIndex] || '').trim();
-            const genericName = nameColIndex !== -1 ? String(row[nameColIndex] || '').trim() : undefined;
+            // Apply normalization to all cell values
+            const design = normalizeCellValue(row[designColIndex]);
+            const karigar = normalizeCellValue(row[karigarColIndex]);
+            const genericName = nameColIndex !== -1 ? normalizeCellValue(row[nameColIndex]) : undefined;
 
             // Skip empty or header-like rows
             if (!design || !karigar) continue;
-            if (design.toLowerCase() === 'design' || karigar.toLowerCase() === 'karigar') continue;
+            if (normalizeHeader(design).includes('design') || normalizeHeader(karigar).includes('karigar')) continue;
+
+            // Normalize design code for lookup
+            const designNormalized = normalizeDesignCode(design);
 
             const entry: KarigarMappingEntry = {
-              design,
+              design, // Keep original for display
+              designNormalized, // Normalized for lookup
               karigar,
               genericName: genericName || undefined,
             };
 
-            sheetEntries.set(design, entry);
+            // Use normalized design as key
+            sheetEntries.set(designNormalized, entry);
           }
 
           if (sheetEntries.size > 0) {
@@ -243,17 +247,17 @@ function parseTextToMapping(text: string): Map<string, KarigarMappingEntry> {
   let karigarColIndex = -1;
   
   for (let i = 0; i < Math.min(10, lines.length); i++) {
-    const line = lines[i].toLowerCase();
+    const line = lines[i];
     const parts = line.split(/[\t|,;]+/).map(p => p.trim());
     
     const designIdx = parts.findIndex(p => 
-      p.includes('design') || p.includes('product') || p.includes('code')
+      matchesHeaderAlias(p, ['design', 'product', 'code'])
     );
     const nameIdx = parts.findIndex(p => 
-      p === 'name' || p.includes('generic') || p.includes('product name')
+      matchesHeaderAlias(p, ['name', 'generic', 'product name'])
     );
     const karigarIdx = parts.findIndex(p => 
-      p.includes('karigar') || p.includes('artisan') || p.includes('worker')
+      matchesHeaderAlias(p, ['karigar', 'artisan', 'worker'])
     );
     
     if (designIdx !== -1 && karigarIdx !== -1) {
@@ -280,15 +284,18 @@ function parseTextToMapping(text: string): Map<string, KarigarMappingEntry> {
     
     if (parts.length < 2) continue;
     
-    const design = parts[designColIndex] || '';
-    const genericName = nameColIndex !== -1 && parts[nameColIndex] ? parts[nameColIndex] : undefined;
-    const karigar = parts[karigarColIndex] || '';
+    const design = normalizeCellValue(parts[designColIndex]);
+    const genericName = nameColIndex !== -1 && parts[nameColIndex] ? normalizeCellValue(parts[nameColIndex]) : undefined;
+    const karigar = normalizeCellValue(parts[karigarColIndex]);
     
     if (!design || !karigar) continue;
-    if (design.toLowerCase().includes('design') || karigar.toLowerCase().includes('karigar')) continue;
+    if (normalizeHeader(design).includes('design') || normalizeHeader(karigar).includes('karigar')) continue;
     
-    entries.set(design, {
+    const designNormalized = normalizeDesignCode(design);
+    
+    entries.set(designNormalized, {
       design,
+      designNormalized,
       karigar,
       genericName,
     });

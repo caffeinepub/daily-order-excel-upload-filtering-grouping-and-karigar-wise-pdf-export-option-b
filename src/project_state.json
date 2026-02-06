@@ -1,22 +1,30 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 13,
-  "summary": "Order management app (Option B) where the user uploads a cumulative OrderList (treated as today/selected date’s orders) and uses a standard (not daily) karigar mapping document (Excel or PDF) to auto-enrich orders with Generic Name + Karigar Name by Design code, then view orders factory-wise via swipeable factory screens and karigar-wise grouping with export actions, within an app layout titled “Shree I Jewellery Order Management System” (default opens to Order List).",
+  "projectStateVersion": 31,
+  "summary": "Order management app (Option B) where the user uploads a cumulative OrderList (treated as today/selected date’s orders) and uses a standard (not daily) karigar mapping document (Excel or PDF) to auto-enrich orders with Generic Name + Karigar Name by Design code, then view orders karigar-wise on the Order List page with search/sort and export actions; the Daily Order Upload page should not show factory tabs and should show upload row count plus searchable/sortable extracted columns; data must persist across refreshes, within an app layout titled “Shree I Jewellery Order Management System” (default opens to Order List) without any separate welcome screen or name entry/upload field.",
   "architectural_notes": [
     "Portal automation/scraping is out of scope; orders will be provided via manual Excel upload (Option B).",
     "Do not store or hardcode portal credentials in the app; treat any login details as secrets and exclude from logs/storage.",
     "Input will include two Excel uploads: a cumulative OrderList (treated as the selected day’s dataset) and a separate multi-sheet workbook used as a Design→Karigar mapping for grouping.",
     "App should open without requiring user login/authentication (no auth gate on launch).",
-    "Add a landing page/title screen and a 3-tab app structure: Order List (factory-wise), Daily Order Upload, and Karigar Mapping.",
     "Karigar mapping workbook is a standard/persistent dataset updated only when required via manual upload (not a daily upload).",
     "The mapping workbook’s “Name” column represents a generic product name associated with the product/design code and must be handled accordingly when grouping/displaying.",
     "Karigar mapping source must support either Excel or PDF; requiring three sheets named 1/2/3 is optional and must not be assumed.",
-    "Order display should be enriched from mapping by adding derived columns (Generic Name, Karigar Name) matched via Design code."
+    "Order display should be enriched from mapping by adding derived columns (Generic Name, Karigar Name) matched via Design code.",
+    "Karigar mapping upload must not be restricted to admin; any user (including anonymous) can upload/replace the current mapping dataset.",
+    "No welcome/landing screen is needed; app should open directly to the Order List (no user name field to enter/upload)."
   ],
   "known_issues": [
     "Excel upload/list is not reading the uploaded Excel file and the app fails/crashes during upload.",
     "Karigar names are being mismatched due to incorrect parsing/usage of the karigar mapping workbook (sheets/columns), resulting in improper karigar-wise filtering/grouping.",
-    "Generic Name mapping/enrichment appears incorrect for some design codes (e.g., showing values like \"3+1\", \"4S IPL\" as generic design names), indicating mapping parsing/matching issues."
+    "Generic Name mapping/enrichment appears incorrect for some design codes (e.g., showing values like \"3+1\", \"4S IPL\" as generic design names), indicating mapping parsing/matching issues.",
+    "Karigar Mapping upload is incorrectly restricted to admin-only; should be uploadable by anyone.",
+    "Daily Order Upload and Karigar Mapping pages show 'Actor not available' error (likely backend/actor/canister not reachable), blocking uploads/merge.",
+    "Order List page is not consistently displaying the extracted base order fields (Weight/Size/Quantity/Remarks, etc.) from the uploaded OrderList; it must show the full extracted dataset plus enrichment.",
+    "Order List still does not display the merged/enriched results after Daily Order Upload + Karigar Mapping upload (combined data not showing in the Order List view).",
+    "Daily Order Upload Excel parsing currently extracts only Order No and Design, but fails to extract required fields Weight, Size, Quantity, and Remark.",
+    "Draft/live deployments appear to show no changes for multiple versions (possible caching or deployment pipeline issue), making it hard to verify fixes to Excel extraction.",
+    "Order data extraction quality is still poor in both draft and live builds (per user screenshots), indicating remaining issues in the OrderList/Daily Orders parsing and field extraction."
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -195,6 +203,182 @@
         "REQ-25"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-eliminate-the-user-visible-actor-not-available-failure-on-both-the-daily-order-upload-and-karigar-mapping-pages-by-making-all-upload-save-actions-wait-for-backend-actor-readiness-and-by-showing-a-clear-english-loading-disabled-state-until-the-actor-is-created",
+      "title": "Eliminate the user-visible \"Actor not available\" failure on both the Daily Order Upload and Karigar Mapping pages by making all upload/save actions wait for backend actor readiness and by showing a clear English loading/disabled state until the actor is created.",
+      "reqIds": [
+        "REQ-26"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-revise-the-daily-order-upload-page-ui-and-workflow-so-that-after-upload-it-shows-only-a-total-number-of-uploaded-rows-and-b-a-searchable-sortable-table-for-the-extracted-columns-order-no-design-weight-size-quantity-remarks-remove-factory-navigation-tabs-and-remove-any-assign-to-karigar-ui-from-this-page",
+      "title": "Revise the Daily Order Upload page UI and workflow so that after upload it shows only: (a) total number of uploaded rows, and (b) a searchable/sortable table for the extracted columns (Order No, Design, Weight, Size, Quantity, Remarks). Remove factory navigation/tabs and remove any \"assign to karigar\" UI from this page.",
+      "reqIds": [
+        "REQ-28"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-the-daily-order-upload-page-support-selecting-all-orders-and-selecting-individual-orders-then-exporting-either-a-all-orders-or-b-only-the-selected-orders",
+      "title": "On the Daily Order Upload page, support selecting all orders and selecting individual orders, then exporting either (a) all orders or (b) only the selected orders.",
+      "reqIds": [
+        "REQ-29"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-the-merged-data-behavior-after-a-karigar-mapping-file-excel-or-pdf-is-uploaded-and-daily-orders-are-uploaded-the-order-list-view-must-enrich-each-order-by-matching-on-design-code-and-then-show-the-complete-order-list-filtered-grouped-karigar-wise-based-on-the-merged-mapping-result",
+      "title": "Implement the merged data behavior: after a karigar mapping file (Excel or PDF) is uploaded and daily orders are uploaded, the Order List view must enrich each order by matching on Design code and then show the complete order list filtered/grouped karigar-wise based on the merged mapping result.",
+      "reqIds": [
+        "REQ-30"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-daily-uploaded-order-data-and-the-currently-uploaded-karigar-mapping-dataset-persist-across-browser-refreshes-and-are-reloaded-automatically-when-reopening-the-app",
+      "title": "Ensure daily uploaded order data and the currently uploaded karigar mapping dataset persist across browser refreshes and are reloaded automatically when reopening the app.",
+      "reqIds": [
+        "REQ-31"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-perform-an-app-wide-robustness-pass-for-the-draft-release-replace-any-remaining-raw-backend-agent-exceptions-with-clear-english-user-facing-errors-and-prevent-crashes-during-file-upload-parse-save-flows",
+      "title": "Perform an app-wide robustness pass for the draft release: replace any remaining raw backend/agent exceptions with clear English user-facing errors and prevent crashes during file upload/parse/save flows.",
+      "reqIds": [
+        "REQ-32"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-daily-order-upload-page-to-save-the-parsed-excel-fields-including-weight-size-quantity-remarks-to-the-backend-and-to-reload-them-correctly-from-the-backend-so-the-table-shows-the-same-extracted-values-after-refresh-reopen",
+      "title": "Update the Daily Order Upload page to save the parsed Excel fields (including Weight/Size/Quantity/Remarks) to the backend and to reload them correctly from the backend so the table shows the same extracted values after refresh/reopen.",
+      "reqIds": [
+        "REQ-34"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-karigar-mapping-uploaded-as-pdf-design-code-generic-name-karigar-name-is-used-to-enrich-the-daily-orders-by-matching-on-design-code-and-show-the-enriched-results-on-the-order-list-page-grouped-filtered-karigar-wise-while-still-displaying-the-full-base-order-columns-weight-size-quantity-remarks",
+      "title": "Ensure karigar mapping uploaded as PDF (Design code, Generic name, Karigar name) is used to enrich the daily orders by matching on Design code, and show the enriched results on the Order List page grouped/filtered karigar-wise while still displaying the full base order columns (Weight/Size/Quantity/Remarks).",
+      "reqIds": [
+        "REQ-35"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-order-list-exports-so-downloaded-exported-files-for-karigar-wise-groups-include-the-complete-dataset-fields-order-no-design-generic-name-karigar-name-weight-size-quantity-remarks-for-the-selected-date-karigar-filter",
+      "title": "Fix Order List exports so downloaded/exported files for karigar-wise groups include the complete dataset fields (Order No, Design, Generic Name, Karigar Name, Weight, Size, Quantity, Remarks) for the selected date/karigar filter.",
+      "reqIds": [
+        "REQ-36"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-the-order-list-tab-ensure-each-order-row-is-displayed-using-the-merged-dataset-where-base-fields-come-from-the-daily-order-upload-order-no-design-code-weight-size-quantity-remarks-and-enrichment-fields-come-from-the-current-karigar-mapping-dataset-generic-name-karigar-name-matched-by-design-code",
+      "title": "On the Order List tab, ensure each order row is displayed using the merged dataset where base fields come from the Daily Order Upload (Order No, Design Code, Weight, Size, Quantity, Remarks) and enrichment fields come from the current Karigar Mapping dataset (Generic Name, Karigar Name) matched by Design Code.",
+      "reqIds": [
+        "REQ-37"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-clear-english-error-ui-to-the-order-list-tab-when-fetching-daily-orders-and-or-the-karigar-mapping-fails-e-g-backend-trap-agent-error-instead-of-silently-showing-an-empty-state-the-error-must-be-displayed-alongside-the-existing-connecting-to-backend-readiness-messaging",
+      "title": "Add clear English error UI to the Order List tab when fetching daily orders and/or the karigar mapping fails (e.g., backend trap/agent error), instead of silently showing an empty state. The error must be displayed alongside the existing \"Connecting to backend...\" readiness messaging.",
+      "reqIds": [
+        "REQ-40"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-order-list-tab-refreshes-merged-enriched-results-after-a-successful-daily-orders-upload-and-after-a-successful-karigar-mapping-upload-without-requiring-a-manual-page-refresh-by-relying-on-existing-react-query-invalidations-and-making-sure-the-order-list-view-reacts-to-newly-available-query-data",
+      "title": "Ensure the Order List tab refreshes merged/enriched results after a successful Daily Orders upload and after a successful Karigar Mapping upload (without requiring a manual page refresh), by relying on existing React Query invalidations and making sure the Order List view reacts to newly available query data.",
+      "reqIds": [
+        "REQ-41"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-daily-order-upload-file-parser-so-it-reliably-extracts-all-required-fields-for-each-row-order-no-design-weight-size-quantity-and-remark-s-even-when-the-uploaded-excel-csv-uses-common-header-variations-or-has-extra-title-rows-above-the-real-header-row",
+      "title": "Update the Daily Order Upload file parser so it reliably extracts all required fields for each row: Order No, Design, Weight, Size, Quantity, and Remark(s), even when the uploaded Excel/CSV uses common header variations or has extra title rows above the real header row.",
+      "reqIds": [
+        "REQ-42"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-improve-daily-order-upload-parsing-so-orderlist-uploads-reliably-extract-non-empty-values-for-all-required-fields-order-no-design-weight-size-quantity-remarks-for-the-common-orderlist-workbook-format-including-when-headers-are-non-standard-when-there-are-extra-title-rows-and-when-cell-values-include-hidden-characters-or-unusual-spacing",
+      "title": "Improve Daily Order Upload parsing so OrderList uploads reliably extract non-empty values for all required fields (Order No, Design, Weight, Size, Quantity, Remarks) for the common OrderList workbook format, including when headers are non-standard, when there are extra title rows, and when cell values include hidden characters or unusual spacing.",
+      "reqIds": [
+        "REQ-43"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-harden-design-code-normalization-and-mapping-matching-so-order-list-enrichment-does-not-incorrectly-produce-an-all-unmapped-result-when-mapping-exists-by-applying-the-same-normalization-rules-to-both-a-uploaded-orders-design-values-and-b-mapping-entries-design-values-before-lookup",
+      "title": "Harden Design-code normalization and mapping matching so Order List enrichment does not incorrectly produce an all-“Unmapped” result when mapping exists, by applying the same normalization rules to both (a) uploaded orders’ Design values and (b) mapping entries’ Design values before lookup.",
+      "reqIds": [
+        "REQ-44"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-visible-user-friendly-build-identifier-in-the-ui-e-g-in-the-app-header-or-a-small-footer-so-users-can-confirm-that-new-deployments-are-actually-loaded-in-both-draft-and-live-environments",
+      "title": "Add a visible, user-friendly build identifier in the UI (e.g., in the app header or a small footer) so users can confirm that new deployments are actually loaded in both draft and live environments.",
+      "reqIds": [
+        "REQ-45"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-frontend-cache-busting-safeguards-so-that-after-deployment-the-latest-ui-bundle-is-more-reliably-served-reduce-the-chance-that-draft-live-appears-unchanged-across-multiple-versions",
+      "title": "Add frontend cache-busting safeguards so that after deployment, the latest UI bundle is more reliably served (reduce the chance that draft/live appears unchanged across multiple versions).",
+      "reqIds": [
+        "REQ-46"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-the-always-on-welcome-profile-setup-modal-so-the-app-opens-directly-to-the-main-ui-order-list-daily-order-upload-karigar-mapping-without-any-welcome-screen",
+      "title": "Remove the always-on welcome/profile setup modal so the app opens directly to the main UI (Order List / Daily Order Upload / Karigar Mapping) without any welcome screen.",
+      "reqIds": [
+        "REQ-47"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-the-profile-name-input-and-any-frontend-logic-that-uploads-saves-a-user-name-do-not-call-savecalleruserprofile-getcalleruserprofile-from-the-ui-flow",
+      "title": "Remove the profile name input and any frontend logic that uploads/saves a user name (do not call saveCallerUserProfile / getCallerUserProfile from the UI flow).",
+      "reqIds": [
+        "REQ-48"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-improve-the-daily-order-upload-file-parser-so-it-reliably-extracts-non-empty-values-for-all-required-fields-order-no-design-weight-size-quantity-remarks-from-common-orderlist-excel-csv-formats-including-when-there-are-extra-title-rows-above-the-real-header-row-when-headers-use-common-variations-e-g-different-casing-punctuation-remark-s-and-when-there-are-hidden-unusual-whitespace-characters",
+      "title": "Improve the Daily Order Upload file parser so it reliably extracts non-empty values for all required fields (Order No, Design, Weight, Size, Quantity, Remarks) from common OrderList Excel/CSV formats, including when there are extra title rows above the real header row, when headers use common variations (e.g., different casing/punctuation, \"Remark's\"), and when there are hidden/unusual whitespace characters.",
+      "reqIds": [
+        "REQ-49"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-expose-daily-order-upload-parsing-warnings-and-detected-header-information-to-the-user-in-the-daily-order-upload-ui-in-english-instead-of-only-logging-warnings-to-the-console-so-the-user-can-understand-when-the-file-is-missing-optional-columns-or-when-a-non-first-header-row-was-used",
+      "title": "Expose Daily Order Upload parsing warnings and detected-header information to the user in the Daily Order Upload UI (in English) instead of only logging warnings to the console, so the user can understand when the file is missing optional columns or when a non-first header row was used.",
+      "reqIds": [
+        "REQ-50"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-daily-order-upload-flow-does-not-crash-or-abort-after-parser-changes-successful-parses-must-still-populate-the-on-page-table-and-attempt-to-save-to-the-backend-failures-must-show-a-clear-english-error-without-losing-already-parsed-rows-when-only-the-save-step-fails",
+      "title": "Ensure the Daily Order Upload flow does not crash or abort after parser changes: successful parses must still populate the on-page table and attempt to save to the backend; failures must show a clear English error without losing already-parsed rows when only the save step fails.",
+      "reqIds": [
+        "REQ-51"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -269,12 +453,6 @@
       "status": "pending"
     },
     {
-      "id": "AR-22",
-      "summary": "Add an app landing page on open showing title “Shree I Jewellery Order Management System” and provide a 3-tab navigation: (1) Order List (factory-wise), (2) Daily Order Upload, (3) Karigar Mapping management/upload.",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
       "id": "AR-23",
       "summary": "Correct karigar mapping parsing: specifically use sheets 1 & 3 appropriately and treat the “Name” column as the generic product name tied to the product/design code; ensure orders are matched and karigar names assigned correctly.",
       "reqIds": [],
@@ -328,6 +506,68 @@
       "id": "AR-32",
       "summary": "Revamp navigation: move top tabs into a left-side menu/drawer opened via a top icon; default app landing should open directly to the Order List page.",
       "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-33",
+      "summary": "Remove admin-only restriction for Karigar Mapping upload; allow any (anonymous) user to upload/update the mapping file",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-34",
+      "summary": "In Karigar Mapping tab, show a persistent 'Current mapping status' at the bottom displaying the actual currently uploaded mapping file name/details",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-35",
+      "summary": "Add 'Remove all orders' option on Order List tab and provide 'Select All' for total orders and within each karigar tab/group",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-36",
+      "summary": "Revise Daily Order Upload page: remove factory tabs; after upload show total rows + searchable/sortable table, and allow export of all orders or selected individual orders (no manual karigar assignment UI).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-38",
+      "summary": "Update backend authorization so anonymous (not logged-in) users can store and read daily orders and can upload/replace the karigar mapping workbook, without trapping as unauthorized.",
+      "reqIds": [
+        "REQ-27"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-39",
+      "summary": "Show the extracted order columns (Order No, Design, Weight, Size, Quantity, Remarks) in BOTH the Daily Order Upload page and the Order List page (with Order List additionally enriched by mapping).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-40",
+      "summary": "Persist the full extracted daily order fields (Order No, Design, Weight, Size, Quantity, Remarks) in the backend when storing daily orders, and return these fields from the backend for later viewing/export.",
+      "reqIds": [
+        "REQ-33"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-41",
+      "summary": "Update the backend authorization rules so anonymous (not logged-in) users can read and write the core datasets required for the merged Order List view: Daily Orders and the Karigar Mapping workbook. Specifically, calls from anonymous users must not trap as \"Unauthorized\" for: getDailyOrders, storeDailyOrders, getKarigarMappingWorkbook, and saveKarigarMappingWorkbook.",
+      "reqIds": [
+        "REQ-38"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-42",
+      "summary": "Update the backend authorization rules so anonymous (not logged-in) users can read and write karigar assignment data used for grouping/filtering where applicable (assignKarigar and getKarigarAssignments), to avoid partial failures in any views that still depend on assignments.",
+      "reqIds": [
+        "REQ-39"
+      ],
       "status": "pending"
     }
   ],
