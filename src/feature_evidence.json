@@ -2,11 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-fix-design-code-matching-so-order-list-enrichment-successfully-maps-orders-to-karigar-generic-name-even-when-design-codes-differ-only-by-separators-e-g-hyphens-underscores-slashes-or-formatting",
-      "featureTitle": "Fix design-code matching so Order List enrichment successfully maps orders to karigar/generic name even when design codes differ only by separators (e.g., hyphens, underscores, slashes) or formatting.",
+      "featureId": "feature-update-the-karigar-mapping-excel-parser-so-it-can-successfully-parse-mapping-workbooks-that-do-not-contain-sheets-named-1-2-or-3-e-g-a-single-sheet-table-like-the-user-s-example-with-columns-design-name-and-karigar-and-still-preserve-the-existing-priority-behavior-for-workbooks-that-do-contain-sheets-1-3-2",
+      "featureTitle": "Update the karigar mapping Excel parser so it can successfully parse mapping workbooks that do NOT contain sheets named \"1\", \"2\", or \"3\" (e.g., a single-sheet table like the user’s example with columns \"Design\", \"NAME\", and \"KARIGAR\"), and still preserve the existing priority behavior for workbooks that do contain sheets \"1\"/\"3\"/\"2\".",
       "files": [
-        "frontend/src/features/order-list/OrderListTab.tsx",
-        "frontend/src/utils/textNormalize.ts"
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -18,15 +17,16 @@
         "blob-storage@4.0.0"
       ],
       "testIds": [
-        "REQ-59"
+        "REQ-64"
       ],
       "confidence": "high"
     },
     {
-      "featureId": "feature-update-canonical-design-code-normalization-used-for-matching-so-it-is-robust-to-common-separator-differences-by-producing-the-same-lookup-key-for-equivalent-design-codes-across-uploads-orders-and-mapping",
-      "featureTitle": "Update canonical design-code normalization used for matching so it is robust to common separator differences by producing the same lookup key for equivalent design codes across uploads (orders and mapping).",
+      "featureId": "feature-improve-karigar-mapping-upload-ui-copy-and-error-messaging-to-explicitly-support-the-user-s-tabular-mapping-format-like-the-screenshot-and-to-clearly-explain-why-a-file-cannot-be-mapped-e-g-unsupported-file-type-such-as-an-image-screenshot-or-missing-required-columns",
+      "featureTitle": "Improve karigar mapping upload UI copy and error messaging to explicitly support the user’s tabular mapping format (like the screenshot) and to clearly explain why a file cannot be mapped (e.g., unsupported file type such as an image/screenshot, or missing required columns).",
       "files": [
-        "frontend/src/utils/textNormalize.ts"
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+        "frontend/src/utils/userFacingError.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -38,16 +38,16 @@
         "blob-storage@4.0.0"
       ],
       "testIds": [
-        "REQ-60"
+        "REQ-65"
       ],
       "confidence": "high"
     },
     {
-      "featureId": "feature-ensure-the-decoded-mapping-lookup-is-rebuilt-after-a-successful-mapping-upload-and-when-the-stored-mapping-changes-so-order-list-does-not-keep-using-a-stale-lookup",
-      "featureTitle": "Ensure the decoded mapping lookup is rebuilt after a successful mapping upload and when the stored mapping changes, so Order List does not keep using a stale lookup.",
+      "featureId": "feature-after-a-successful-karigar-mapping-upload-show-a-small-english-summary-in-the-karigar-mapping-tab-indicating-the-number-of-mapping-entries-parsed-and-the-sheet-s-used-to-help-users-confirm-that-the-uploaded-mapping-resembles-the-live-app-example",
+      "featureTitle": "After a successful karigar mapping upload, show a small English summary in the Karigar Mapping tab indicating the number of mapping entries parsed and the sheet(s) used, to help users confirm that the uploaded mapping resembles the live-app example.",
       "files": [
-        "frontend/src/features/order-list/useKarigarMappingLookup.ts",
-        "frontend/src/hooks/useQueries.ts"
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+        "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -59,48 +59,7 @@
         "blob-storage@4.0.0"
       ],
       "testIds": [
-        "REQ-61"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-make-mapping-lookup-construction-resilient-to-older-saved-mapping-blobs-by-recomputing-the-normalized-lookup-key-from-the-stored-design-value-using-the-current-normalization-rules-do-not-rely-exclusively-on-a-previously-persisted-designnormalized-value",
-      "featureTitle": "Make mapping lookup construction resilient to older saved mapping blobs by recomputing the normalized lookup key from the stored design value using the current normalization rules (do not rely exclusively on a previously persisted designNormalized value).",
-      "files": [
-        "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
-        "frontend/src/features/order-list/useKarigarMappingLookup.ts"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0",
-        "blob-storage@4.0.0"
-      ],
-      "testIds": [
-        "REQ-62"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-improve-order-list-diagnostics-when-mapping-loaded-but-no-orders-match-occurs-by-showing-a-small-english-user-readable-hint-that-includes-concrete-debug-counts-e-g-number-of-distinct-normalized-order-design-keys-and-a-small-sample-to-help-confirm-whether-normalization-matching-is-working",
-      "featureTitle": "Improve Order List diagnostics when 'mapping loaded but no orders match' occurs by showing a small, English, user-readable hint that includes concrete debug counts (e.g., number of distinct normalized order design keys and a small sample) to help confirm whether normalization/matching is working.",
-      "files": [
-        "frontend/src/features/order-list/OrderListTab.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0",
-        "blob-storage@4.0.0"
-      ],
-      "testIds": [
-        "REQ-63"
+        "REQ-66"
       ],
       "confidence": "high"
     }

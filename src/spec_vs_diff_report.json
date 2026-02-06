@@ -1,24 +1,32 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T17:06:34.483Z",
-  "summary": "Diff implements separator-robust design-code normalization and applies it to mapping decode + order enrichment, and adds richer diagnostics data computation. Evidence for React Query invalidation after mapping upload and for actually rendering the new diagnostics hint in the UI is not present in the provided diff excerpts (OrderListTab is truncated; mapping upload mutation not shown).",
+  "generatedAt": "2026-02-06T18:58:15.537Z",
+  "summary": "Diff adds a new hook to compute and fetch a user-facing karigar-mapping summary (entries + sheet names) and modifies the karigar-mapping parser/UI to support flexible sheet/header detection and improved upload validation/error messages. However, due to truncation, several acceptance-criteria details (especially the exact UI copy and the parser’s final aggregated error that lists checked sheets + rejection reasons, and the actual rendering of the summary) cannot be fully verified from the provided diff excerpt.",
   "missing_requirements": [
     {
-      "id": "REQ-61",
-      "requirement": "Ensure the decoded mapping lookup is rebuilt after a successful mapping upload and when the stored mapping changes, including React Query invalidation for both the stored mapping blob query and the derived decoded-mapping lookup query.",
-      "reason": "A derived lookup query is introduced (useKarigarMappingLookup) and keyed by mappingBlob URL, but the diff summary does not show the mapping upload mutation code and its onSuccess invalidations. The useQueries.ts excerpt shown contains no mapping-upload invalidation, so the requirement cannot be confirmed from the provided evidence.",
+      "id": "REQ-64",
+      "requirement": "If no sheets contain a detectable Design + Karigar header pair, the parser fails with a clear English error that lists which sheets were checked and why they were rejected (e.g., missing required columns).",
+      "reason": "The diff shows per-sheet parsing attempts returning detailed per-sheet errors (e.g., empty sheet / missing columns), but the provided excerpt is truncated before showing the top-level Excel workbook logic that aggregates results across sheets and formats the final error listing all checked sheets and rejection reasons.",
       "evidence": [
-        "frontend/src/features/order-list/useKarigarMappingLookup.ts",
-        "frontend/src/hooks/useQueries.ts (truncated; no mapping upload mutation/invalidation shown)"
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts (truncated)"
       ]
     },
     {
-      "id": "REQ-63",
-      "requirement": "Improve Order List diagnostics when 'mapping loaded but no orders match' occurs by showing a small, English, user-readable hint that includes concrete debug counts and a small sample of normalized keys, shown only when mappingEntries > 0, matchedOrders == 0, totalOrders > 0.",
-      "reason": "The diff shows computing enhanced diagnostics values (distinctOrderDesigns, samples), but the OrderListTab rendering section is truncated, so it is not possible to verify that these diagnostics are actually displayed as a user-readable hint under the required condition.",
+      "id": "REQ-65",
+      "requirement": "Karigar Mapping tab’s “File Format Requirements” text states that the mapping can be any sheet name, as long as the file contains columns for Design Code (Design/Product Code), Karigar, and optional Name/Generic Name.",
+      "reason": "The diff shows new upload-time validation and error messages, but the excerpt does not show any updated static “File Format Requirements” copy in the tab UI. The relevant portion of the component is truncated before any such text could be verified.",
       "evidence": [
-        "frontend/src/features/order-list/OrderListTab.tsx (truncated; shows diagnostics computation but not UI rendering)"
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx (truncated)"
+      ]
+    },
+    {
+      "id": "REQ-66",
+      "requirement": "After a successful upload/save, the Karigar Mapping tab displays a summary including: total mapping entries parsed and the sheet name(s) used; shown only when a mapping is currently loaded.",
+      "reason": "A summary hook is added and the tab fetches `existingSummary` and maintains `lastUploadSummary` state, but the diff excerpt is truncated before any JSX that actually renders the summary, so the UI behavior cannot be confirmed from the provided evidence.",
+      "evidence": [
+        "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx (truncated)"
       ]
     }
   ],
@@ -26,11 +34,10 @@
   "confidence": 0.62,
   "changed_files": [
     "frontend-file-summaries.txt",
-    "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
-    "frontend/src/features/order-list/OrderListTab.tsx",
-    "frontend/src/features/order-list/useKarigarMappingLookup.ts",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/utils/textNormalize.ts",
+    "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
+    "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+    "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
+    "frontend/src/utils/userFacingError.ts",
     "project_state.json"
   ]
 }

@@ -21,7 +21,13 @@ export function getUserFacingError(error: unknown): string {
   }
   
   // Parsing errors - keep them detailed and user-friendly
-  if (errorMessage.includes('parse') || errorMessage.includes('Cannot parse file') || errorMessage.includes('Missing critical columns')) {
+  // These are already formatted as clear English messages with details
+  if (errorMessage.includes('parse') || 
+      errorMessage.includes('Cannot parse file') || 
+      errorMessage.includes('Missing required columns') ||
+      errorMessage.includes('No valid design-karigar mappings') ||
+      errorMessage.includes('Missing critical columns') ||
+      errorMessage.includes('Checked sheets:')) {
     return errorMessage; // Keep specific parsing errors as-is
   }
   

@@ -1,100 +1,73 @@
 {
   "kind": "build_request",
-  "title": "Fix karigar mapping enrichment not matching any orders on Order List tab",
-  "priority": "high",
+  "title": "Support karigar mapping files in the same tabular format as the live app example (no required sheet names)",
+  "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-59",
-      "text": "Fix design-code matching so Order List enrichment successfully maps orders to karigar/generic name even when design codes differ only by separators (e.g., hyphens, underscores, slashes) or formatting.",
+      "id": "REQ-64",
+      "text": "Update the karigar mapping Excel parser so it can successfully parse mapping workbooks that do NOT contain sheets named \"1\", \"2\", or \"3\" (e.g., a single-sheet table like the user’s example with columns \"Design\", \"NAME\", and \"KARIGAR\"), and still preserve the existing priority behavior for workbooks that do contain sheets \"1\"/\"3\"/\"2\".",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-6"
+          "recent-messages"
         ],
         "quotes": [
-          "I have checked and rectified all of it and tried uploading new file too but still it isn’t getting mapped, rectify pls"
+          "This is an example of karigar mapping for my data in live app. Why are you not able to do this mapping?"
         ]
       },
       "acceptanceCriteria": [
-        "Given a mapping dataset is loaded and daily orders exist, orders with the same design code but different separator formatting between files (e.g., \"AB-12\" vs \"AB12\"; \"AB/12\" vs \"AB-12\") are enriched with Generic Name and Karigar Name on the Order List tab.",
-        "The enrichment logic does not regress existing matching for already-working design code formats.",
-        "User-facing text remains in English."
+        "Given an uploaded .xlsx/.xls mapping workbook with a single sheet (e.g., \"Sheet1\") that contains headers like \"Design\", \"NAME\", and \"KARIGAR\", parsing succeeds and produces non-zero mapping entries.",
+        "Given an uploaded workbook that contains sheets named \"1\", \"2\", and/or \"3\", the parser continues to prioritize sheets in order: 1, then 3, then 2 (current behavior).",
+        "If a workbook contains both the traditional sheets and other sheets, the traditional sheet priority remains unchanged.",
+        "If no sheets contain a detectable Design + Karigar header pair, the parser fails with a clear English error that lists which sheets were checked and why they were rejected (e.g., missing required columns)."
       ]
     },
     {
-      "id": "REQ-60",
-      "text": "Update canonical design-code normalization used for matching so it is robust to common separator differences by producing the same lookup key for equivalent design codes across uploads (orders and mapping).",
+      "id": "REQ-65",
+      "text": "Improve karigar mapping upload UI copy and error messaging to explicitly support the user’s tabular mapping format (like the screenshot) and to clearly explain why a file cannot be mapped (e.g., unsupported file type such as an image/screenshot, or missing required columns).",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-6"
+          "recent-messages"
         ],
         "quotes": [
-          "A mapping is loaded but no orders match. This may indicate:\nDesign codes in orders don't match those in the mapping file\nDifferent formatting (spaces, dashes, case) between files"
+          "This is an example of karigar mapping for my data in live app. Why are you not able to do this mapping?"
         ]
       },
       "acceptanceCriteria": [
-        "Normalization removes hidden/invisible characters and whitespace as before.",
-        "Normalization also handles common separators so that codes differing only by hyphens/other non-alphanumeric separators match reliably.",
-        "Unit-level verification is possible by manually testing a few representative examples in the UI (upload mapping + upload orders) and seeing matchedOrders > 0 when data overlaps."
+        "Karigar Mapping tab’s “File Format Requirements” text states that the mapping can be any sheet name, as long as the file contains columns for Design Code (Design/Product Code), Karigar, and optional Name/Generic Name.",
+        "When a user attempts to upload an unsupported format (e.g., .jpeg screenshot), the UI shows an English error explaining that only Excel (.xlsx/.xls) and PDF are supported and that screenshots/images cannot be parsed.",
+        "When parsing fails due to missing required columns, the UI shows an English error that states which required columns were not found (Design and Karigar) and suggests using headers like “Design” and “Karigar”."
       ]
     },
     {
-      "id": "REQ-61",
-      "text": "Ensure the decoded mapping lookup is rebuilt after a successful mapping upload and when the stored mapping changes, so Order List does not keep using a stale lookup.",
+      "id": "REQ-66",
+      "text": "After a successful karigar mapping upload, show a small English summary in the Karigar Mapping tab indicating the number of mapping entries parsed and the sheet(s) used, to help users confirm that the uploaded mapping resembles the live-app example.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-6"
-        ]
-      },
-      "acceptanceCriteria": [
-        "After uploading a new mapping file in the Karigar Mapping tab, switching to the Order List tab (or staying on it) shows updated matching results without requiring a hard refresh.",
-        "React Query invalidation covers both the stored mapping blob query and the derived decoded-mapping lookup query so stale derived data is not reused."
-      ]
-    },
-    {
-      "id": "REQ-62",
-      "text": "Make mapping lookup construction resilient to older saved mapping blobs by recomputing the normalized lookup key from the stored design value using the current normalization rules (do not rely exclusively on a previously persisted designNormalized value).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-6"
-        ]
-      },
-      "acceptanceCriteria": [
-        "If an older mapping blob contains entries with designNormalized values created under older rules, the app still matches orders correctly after this fix without requiring the user to re-upload the mapping file.",
-        "No crashes occur during mapping decode; decode errors continue to be shown as clear English messages on the Order List tab."
-      ]
-    },
-    {
-      "id": "REQ-63",
-      "text": "Improve Order List diagnostics when 'mapping loaded but no orders match' occurs by showing a small, English, user-readable hint that includes concrete debug counts (e.g., number of distinct normalized order design keys and a small sample) to help confirm whether normalization/matching is working.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-6"
+          "recent-messages"
         ],
         "quotes": [
-          "The error showing in the order list page regarding mapping mentioned below"
+          "This is an example of karigar mapping for my data in live app. Why are you not able to do this mapping?"
         ]
       },
       "acceptanceCriteria": [
-        "When mapping entries > 0 and matchedOrders == 0 and totalOrders > 0, the UI shows additional diagnostics in English beyond the existing generic bullet list (without exposing raw stack traces).",
-        "Diagnostics do not block normal usage and remain hidden when matching is working (matchedOrders > 0)."
+        "After a successful upload/save, the Karigar Mapping tab displays a summary including: total mapping entries parsed and the sheet name(s) used.",
+        "The summary is shown only when a mapping is currently loaded (either immediately after upload or after fetching existing mapping).",
+        "All summary text is in English and does not expose raw stack traces or internal exceptions."
       ]
     }
   ],
   "constraints": [
-    "Frontend must remain React + TypeScript with Tailwind and React Query.",
-    "Do not edit files under frontend/src/components/ui (shadcn) or other immutable paths listed in SYSTEM_CONTEXT.",
-    "Backend must remain single-actor Motoko; only add migration if state schema changes (not expected for this fix).",
-    "Use English for any user-facing text."
+    "Do not edit files under frontend/src/components/ui (compose existing shadcn components instead).",
+    "Do not modify frontend immutable paths (e.g., frontend/src/hooks/useInternetIdentity.ts(x), frontend/src/hooks/useActor.ts, frontend/src/main.tsx).",
+    "Backend must remain a single-actor Motoko canister (no additional backend services)."
   ],
   "nonGoals": [
-    "Changing the backend data model for daily orders or mapping storage.",
-    "Adding new authentication or identity features.",
-    "Implementing new export formats or changing existing export file structure beyond what is required to fix mapping enrichment."
+    "Add support for uploading/reading mapping data from images/screenshots (e.g., .jpeg/.png OCR).",
+    "Change design-code normalization rules (unless required to fix the new sheet-selection support).",
+    "Change backend authorization rules or roles as part of this request."
   ],
   "imageRequirements": {
     "required": [],

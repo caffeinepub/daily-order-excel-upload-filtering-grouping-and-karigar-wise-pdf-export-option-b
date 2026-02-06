@@ -16,9 +16,10 @@ export interface ParsedKarigarMapping {
 }
 
 /**
- * Parse karigar mapping workbook with sheets "1", "2", "3" (Excel) or extract from PDF
- * Uses header-based column detection to find design/product code, karigar, and optional Name columns
- * Sheets 1 and 3 take priority over sheet 2
+ * Parse karigar mapping workbook with flexible sheet support:
+ * - Priority: sheets "1", "3", "2" (if they exist)
+ * - Fallback: any sheet with Design + Karigar columns
+ * Also supports PDF extraction
  */
 export async function parseKarigarMapping(file: File): Promise<ParsedKarigarMapping> {
   const fileType = file.type.toLowerCase();
@@ -44,6 +45,144 @@ function looksLikeNumericRatio(value: string): boolean {
   return /^[\d\s+\-:\/]+$/.test(trimmed);
 }
 
+interface SheetParseResult {
+  sheetName: string;
+  entries: Map<string, KarigarMappingEntry>;
+  error?: string;
+}
+
+/**
+ * Try to parse a single sheet for design-karigar mappings
+ * Returns entries map if successful, or error message if failed
+ */
+function tryParseSheet(
+  sheetName: string,
+  worksheet: any,
+  XLSX: any
+): SheetParseResult {
+  const rows = XLSX.utils.sheet_to_json(worksheet, {
+    header: 1,
+    raw: false,
+    defval: '',
+    blankrows: false,
+  }) as any[];
+
+  if (rows.length === 0) {
+    return {
+      sheetName,
+      entries: new Map(),
+      error: `Sheet "${sheetName}" is empty`,
+    };
+  }
+
+  // Find header row and column indices
+  let headerRowIndex = -1;
+  let designColIndex = -1;
+  let karigarColIndex = -1;
+  let nameColIndex = -1;
+
+  // Expanded aliases for better detection
+  const designAliases = ['design', 'product', 'code', 'design code', 'product code', 'item', 'item code', 'style'];
+  const karigarAliases = ['karigar', 'artisan', 'worker', 'craftsman', 'maker'];
+  const nameAliases = ['name', 'product name', 'generic', 'generic name', 'item name', 'description'];
+
+  // Search first 10 rows for headers (support title rows)
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const row = rows[i] as any[];
+    if (!row || row.length < 2) continue;
+
+    // Look for design/product code column
+    const designIndex = row.findIndex((cell) =>
+      matchesHeaderAlias(String(cell || ''), designAliases)
+    );
+
+    // Look for karigar column
+    const karigarIndex = row.findIndex((cell) =>
+      matchesHeaderAlias(String(cell || ''), karigarAliases)
+    );
+
+    // Look for name column (generic product name) - but avoid numeric ratios
+    const nameIndex = row.findIndex((cell) => {
+      const cellStr = String(cell || '');
+      return matchesHeaderAlias(cellStr, nameAliases) && !looksLikeNumericRatio(cellStr);
+    });
+
+    if (designIndex !== -1 && karigarIndex !== -1) {
+      headerRowIndex = i;
+      designColIndex = designIndex;
+      karigarColIndex = karigarIndex;
+      nameColIndex = nameIndex;
+      break;
+    }
+  }
+
+  // If no headers found, return detailed error
+  if (headerRowIndex === -1 || designColIndex === -1 || karigarColIndex === -1) {
+    const detectedHeaders = rows.length > 0 
+      ? (rows[0] as any[]).slice(0, 5).map(c => String(c || '')).filter(h => h).join(', ') 
+      : 'none';
+    
+    const missingColumns: string[] = [];
+    if (designColIndex === -1) missingColumns.push('Design/Product Code');
+    if (karigarColIndex === -1) missingColumns.push('Karigar');
+    
+    return {
+      sheetName,
+      entries: new Map(),
+      error: `Sheet "${sheetName}": Missing required columns: ${missingColumns.join(', ')}. Detected headers: ${detectedHeaders || 'none'}`,
+    };
+  }
+
+  const sheetEntries = new Map<string, KarigarMappingEntry>();
+
+  // Process data rows (skip header row)
+  for (let i = headerRowIndex + 1; i < rows.length; i++) {
+    const row = rows[i] as any[];
+    if (!row || row.length === 0) continue;
+
+    // Apply normalization to all cell values
+    const design = normalizeCellValue(row[designColIndex]);
+    const karigar = normalizeCellValue(row[karigarColIndex]);
+    const genericNameRaw = nameColIndex !== -1 && nameColIndex < row.length ? normalizeCellValue(row[nameColIndex]) : undefined;
+    
+    // Filter out numeric ratios from generic name
+    const genericName = genericNameRaw && !looksLikeNumericRatio(genericNameRaw) ? genericNameRaw : undefined;
+
+    // Skip empty or header-like rows
+    if (!design || !karigar) continue;
+    if (normalizeHeader(design).includes('design') || normalizeHeader(karigar).includes('karigar')) continue;
+
+    // Normalize design code for lookup using canonical normalization
+    const designNormalized = normalizeDesignCode(design);
+    
+    // Skip if normalized design is empty
+    if (!designNormalized) continue;
+
+    const entry: KarigarMappingEntry = {
+      design, // Keep original for display
+      designNormalized, // Normalized for lookup
+      karigar,
+      genericName: genericName || undefined,
+    };
+
+    // Use normalized design as key
+    sheetEntries.set(designNormalized, entry);
+  }
+
+  if (sheetEntries.size === 0) {
+    return {
+      sheetName,
+      entries: new Map(),
+      error: `Sheet "${sheetName}": No valid design-karigar mappings found after parsing (all rows were empty or invalid)`,
+    };
+  }
+
+  return {
+    sheetName,
+    entries: sheetEntries,
+  };
+}
+
 async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -64,137 +203,77 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
         const buffer = data as ArrayBuffer;
         const workbook = window.XLSX.read(buffer, { type: 'array' });
 
-        const result: ParsedKarigarMapping = {};
-        const sheetsToRead = ['1', '3', '2']; // Priority order
-        let foundAnySheet = false;
-        const sheetErrors: string[] = [];
-
-        for (const sheetName of sheetsToRead) {
-          if (!workbook.SheetNames.includes(sheetName)) {
-            continue;
-          }
-
-          foundAnySheet = true;
-          const worksheet = workbook.Sheets[sheetName];
-          const rows = window.XLSX.utils.sheet_to_json<any>(worksheet, {
-            header: 1,
-            raw: false,
-            defval: '',
-            blankrows: false,
-          });
-
-          if (rows.length === 0) {
-            sheetErrors.push(`Sheet "${sheetName}" is empty`);
-            continue;
-          }
-
-          // Find header row and column indices
-          let headerRowIndex = -1;
-          let designColIndex = -1;
-          let karigarColIndex = -1;
-          let nameColIndex = -1;
-
-          // Expanded aliases for better detection
-          const designAliases = ['design', 'product', 'code', 'design code', 'product code', 'item', 'item code', 'style'];
-          const karigarAliases = ['karigar', 'artisan', 'worker', 'craftsman', 'maker'];
-          const nameAliases = ['name', 'product name', 'generic', 'generic name', 'item name', 'description'];
-
-          // Search first 10 rows for headers (support title rows)
-          for (let i = 0; i < Math.min(10, rows.length); i++) {
-            const row = rows[i] as any[];
-            if (!row || row.length < 2) continue;
-
-            // Look for design/product code column
-            const designIndex = row.findIndex((cell) =>
-              matchesHeaderAlias(String(cell || ''), designAliases)
-            );
-
-            // Look for karigar column
-            const karigarIndex = row.findIndex((cell) =>
-              matchesHeaderAlias(String(cell || ''), karigarAliases)
-            );
-
-            // Look for name column (generic product name) - but avoid numeric ratios
-            const nameIndex = row.findIndex((cell) => {
-              const cellStr = String(cell || '');
-              return matchesHeaderAlias(cellStr, nameAliases) && !looksLikeNumericRatio(cellStr);
-            });
-
-            if (designIndex !== -1 && karigarIndex !== -1) {
-              headerRowIndex = i;
-              designColIndex = designIndex;
-              karigarColIndex = karigarIndex;
-              nameColIndex = nameIndex;
-              break;
-            }
-          }
-
-          // If no headers found with confidence, reject this sheet
-          if (headerRowIndex === -1 || designColIndex === -1 || karigarColIndex === -1) {
-            const detectedHeaders = rows.length > 0 ? (rows[0] as any[]).slice(0, 5).map(c => String(c || '')).join(', ') : 'none';
-            sheetErrors.push(
-              `Could not find Design Code and Karigar columns in sheet "${sheetName}". ` +
-              `Detected headers: ${detectedHeaders}. ` +
-              `Please ensure the sheet has columns for design/product code and karigar/artisan.`
-            );
-            continue;
-          }
-
-          const sheetEntries = new Map<string, KarigarMappingEntry>();
-
-          // Process data rows (skip header row)
-          for (let i = headerRowIndex + 1; i < rows.length; i++) {
-            const row = rows[i] as any[];
-            if (!row || row.length === 0) continue;
-
-            // Apply normalization to all cell values
-            const design = normalizeCellValue(row[designColIndex]);
-            const karigar = normalizeCellValue(row[karigarColIndex]);
-            const genericNameRaw = nameColIndex !== -1 && nameColIndex < row.length ? normalizeCellValue(row[nameColIndex]) : undefined;
-            
-            // Filter out numeric ratios from generic name
-            const genericName = genericNameRaw && !looksLikeNumericRatio(genericNameRaw) ? genericNameRaw : undefined;
-
-            // Skip empty or header-like rows
-            if (!design || !karigar) continue;
-            if (normalizeHeader(design).includes('design') || normalizeHeader(karigar).includes('karigar')) continue;
-
-            // Normalize design code for lookup using canonical normalization
-            const designNormalized = normalizeDesignCode(design);
-            
-            // Skip if normalized design is empty
-            if (!designNormalized) continue;
-
-            const entry: KarigarMappingEntry = {
-              design, // Keep original for display
-              designNormalized, // Normalized for lookup
-              karigar,
-              genericName: genericName || undefined,
-            };
-
-            // Use normalized design as key
-            sheetEntries.set(designNormalized, entry);
-          }
-
-          if (sheetEntries.size > 0) {
-            result[sheetName] = { entries: sheetEntries };
-          } else {
-            sheetErrors.push(`Sheet "${sheetName}" contains no valid design-karigar mappings after parsing`);
-          }
-        }
-
-        if (!foundAnySheet) {
-          reject(new Error('No sheets named "1", "2", or "3" found in the workbook. Please ensure the file contains the required sheets.'));
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          reject(new Error('The workbook contains no sheets. Please upload a valid Excel file.'));
           return;
         }
 
+        const result: ParsedKarigarMapping = {};
+        const parseResults: SheetParseResult[] = [];
+        
+        // Priority sheets (traditional format)
+        const prioritySheets = ['1', '3', '2'];
+        const hasPrioritySheets = prioritySheets.some(name => workbook.SheetNames.includes(name));
+
+        if (hasPrioritySheets) {
+          // Traditional behavior: only check priority sheets in order
+          for (const sheetName of prioritySheets) {
+            if (!workbook.SheetNames.includes(sheetName)) {
+              continue;
+            }
+
+            const worksheet = workbook.Sheets[sheetName];
+            const parseResult = tryParseSheet(sheetName, worksheet, window.XLSX);
+            parseResults.push(parseResult);
+
+            if (parseResult.entries.size > 0) {
+              result[sheetName] = { entries: parseResult.entries };
+            }
+          }
+        } else {
+          // Fallback: scan all sheets for any with Design + Karigar columns
+          for (const sheetName of workbook.SheetNames) {
+            const worksheet = workbook.Sheets[sheetName];
+            const parseResult = tryParseSheet(sheetName, worksheet, window.XLSX);
+            parseResults.push(parseResult);
+
+            if (parseResult.entries.size > 0) {
+              result[sheetName] = { entries: parseResult.entries };
+            }
+          }
+        }
+
+        // Check if we found any valid mappings
         const totalEntries = Object.values(result).reduce((sum, sheet) => sum + sheet.entries.size, 0);
+        
         if (totalEntries === 0) {
-          const errorDetails = sheetErrors.length > 0 ? '\n\n' + sheetErrors.join('\n') : '';
-          reject(new Error(
-            `No valid design-karigar mappings found in sheets "1", "2", or "3". ` +
-            `Please ensure the sheets contain design/product code and karigar columns with data.${errorDetails}`
-          ));
+          // Build detailed error message
+          const errorLines: string[] = [];
+          
+          if (hasPrioritySheets) {
+            errorLines.push('No valid design-karigar mappings found in sheets "1", "2", or "3".');
+          } else {
+            errorLines.push('No valid design-karigar mappings found in any sheet.');
+          }
+          
+          errorLines.push('');
+          errorLines.push('Checked sheets:');
+          
+          for (const result of parseResults) {
+            if (result.error) {
+              errorLines.push(`  • ${result.error}`);
+            } else {
+              errorLines.push(`  • Sheet "${result.sheetName}": OK but no data rows`);
+            }
+          }
+          
+          errorLines.push('');
+          errorLines.push('Please ensure your file contains columns for:');
+          errorLines.push('  • Design Code (or "Design", "Product Code")');
+          errorLines.push('  • Karigar (or "Artisan", "Worker")');
+          errorLines.push('  • Optional: Name (or "Generic Name", "Product Name")');
+          
+          reject(new Error(errorLines.join('\n')));
           return;
         }
 

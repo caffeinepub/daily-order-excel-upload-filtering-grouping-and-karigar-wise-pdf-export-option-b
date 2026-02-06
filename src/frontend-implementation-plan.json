@@ -1,102 +1,74 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix karigar mapping enrichment by robust design-code normalization, fresh lookup rebuild, and better Order List diagnostics",
+  "title": "Karigar mapping: support any-sheet Excel tables + clearer UX + upload summary",
   "requirements": [
     {
-      "id": "REQ-59",
-      "summary": "Make Order List enrichment match design codes even when the only differences are separators/formatting (hyphens, underscores, slashes, spaces).",
+      "id": "REQ-64",
+      "summary": "Extend karigar mapping Excel parsing to support single-sheet tabular workbooks with any sheet name, while preserving existing 1/3/2 sheet priority behavior and improving rejection diagnostics.",
       "acceptanceCriteria": [
-        "Given a mapping dataset is loaded and daily orders exist, orders with the same design code but different separator formatting between files (e.g., \"AB-12\" vs \"AB12\"; \"AB/12\" vs \"AB-12\") are enriched with Generic Name and Karigar Name on the Order List tab.",
-        "The enrichment logic does not regress existing matching for already-working design code formats.",
-        "User-facing text remains in English."
+        "Given an uploaded .xlsx/.xls mapping workbook with a single sheet (e.g., \"Sheet1\") that contains headers like \"Design\", \"NAME\", and \"KARIGAR\", parsing succeeds and produces non-zero mapping entries.",
+        "Given an uploaded workbook that contains sheets named \"1\", \"2\", and/or \"3\", the parser continues to prioritize sheets in order: 1, then 3, then 2 (current behavior).",
+        "If a workbook contains both the traditional sheets and other sheets, the traditional sheet priority remains unchanged.",
+        "If no sheets contain a detectable Design + Karigar header pair, the parser fails with a clear English error that lists which sheets were checked and why they were rejected (e.g., missing required columns)."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/utils/textNormalize.ts",
+          "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "operation": "modify",
-          "description": "Update normalizeDesignCode to produce equivalent lookup keys for design codes that differ only by separators/formatting by stripping common non-alphanumeric separators (including hyphens/underscores/slashes and similar punctuation) while keeping prior hidden/invisible-character handling and case-insensitivity."
-        },
-        {
-          "path": "frontend/src/features/order-list/OrderListTab.tsx",
-          "operation": "modify",
-          "description": "Ensure Order List enrichment continues to use the canonical normalizeDesignCode for order.design lookup so separator-only variants map to the same karigar/generic name."
-        }
-      ]
-    },
-    {
-      "id": "REQ-60",
-      "summary": "Strengthen the canonical design-code normalization so orders and mappings generate the same robust matching key across uploads.",
-      "acceptanceCriteria": [
-        "Normalization removes hidden/invisible characters and whitespace as before.",
-        "Normalization also handles common separators so that codes differing only by hyphens/other non-alphanumeric separators match reliably.",
-        "Unit-level verification is possible by manually testing a few representative examples in the UI (upload mapping + upload orders) and seeing matchedOrders > 0 when data overlaps."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/utils/textNormalize.ts",
-          "operation": "modify",
-          "description": "Refine normalizeDesignCode to (1) preserve existing removal of hidden/invisible characters and whitespace and (2) normalize away separator differences by removing non-alphanumeric characters so equivalent codes share the same canonical key."
+          "description": "Update Excel workbook sheet selection logic to: (1) keep current priority when sheets \"1\"/\"3\"/\"2\" exist (check in order 1→3→2 only), and (2) when none of those exist, scan all workbook sheets and parse any sheet that contains a detectable Design (Design/Product Code) + Karigar header pair. When parsing fails, throw a clear English error that lists each checked sheet and the rejection reason (e.g., empty sheet, missing Design column, missing Karigar column, or no valid rows after parsing). Ensure single-sheet tabular workbooks like the user’s example can yield non-zero entries."
         },
         {
           "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "operation": "modify",
-          "description": "Confirm mapping parsing continues to compute designNormalized using the updated normalizeDesignCode so newly uploaded mappings align with Order List matching keys."
+          "description": "Refactor header detection to produce explicit per-sheet diagnostics (e.g., detected header row sample and which required columns were missing) so the UI can display actionable errors without stack traces. Keep existing normalization behavior unless required for the new sheet-selection support."
         }
       ]
     },
     {
-      "id": "REQ-61",
-      "summary": "Rebuild decoded mapping lookup after mapping upload and when stored mapping changes so Order List does not use stale derived data.",
+      "id": "REQ-65",
+      "summary": "Improve Karigar Mapping upload tab copy and errors to explicitly support any-sheet tabular Excel mapping format and clearly explain mapping failures.",
       "acceptanceCriteria": [
-        "After uploading a new mapping file in the Karigar Mapping tab, switching to the Order List tab (or staying on it) shows updated matching results without requiring a hard refresh.",
-        "React Query invalidation covers both the stored mapping blob query and the derived decoded-mapping lookup query so stale derived data is not reused."
+        "Karigar Mapping tab’s “File Format Requirements” text states that the mapping can be any sheet name, as long as the file contains columns for Design Code (Design/Product Code), Karigar, and optional Name/Generic Name.",
+        "When a user attempts to upload an unsupported format (e.g., .jpeg screenshot), the UI shows an English error explaining that only Excel (.xlsx/.xls) and PDF are supported and that screenshots/images cannot be parsed.",
+        "When parsing fails due to missing required columns, the UI shows an English error that states which required columns were not found (Design and Karigar) and suggests using headers like “Design” and “Karigar”."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useQueries.ts",
+          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
           "operation": "modify",
-          "description": "Extend the mapping upload success invalidation to also invalidate the derived decoded mapping lookup query (in addition to the stored mapping blob query) so Order List rebuilds enrichment immediately without a hard refresh."
+          "description": "Update the “File Format Requirements” copy to explicitly state that the Excel workbook can use any sheet name, as long as it contains required columns for Design Code (Design/Product Code) and Karigar, with optional Name/Generic Name. Keep mention of sheet priority only for the traditional \"1\"/\"3\"/\"2\" case."
         },
         {
-          "path": "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
           "operation": "modify",
-          "description": "Adjust decoded mapping lookup React Query caching keys and/or staleness so the derived lookup reliably rebuilds when the mapping blob query is invalidated/refetched."
-        }
-      ]
-    },
-    {
-      "id": "REQ-62",
-      "summary": "Make mapping lookup construction compatible with older saved blobs by recomputing normalized keys from stored design values using current rules.",
-      "acceptanceCriteria": [
-        "If an older mapping blob contains entries with designNormalized values created under older rules, the app still matches orders correctly after this fix without requiring the user to re-upload the mapping file.",
-        "No crashes occur during mapping decode; decode errors continue to be shown as clear English messages on the Order List tab."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/features/order-list/useKarigarMappingLookup.ts",
-          "operation": "modify",
-          "description": "When building the lookup, recompute the normalized key from entry.design using the current normalizeDesignCode rules (use persisted designNormalized only as a fallback for missing design), ensuring older blobs still match after normalization changes."
+          "description": "Add a pre-parse file validation guard so if the user selects an unsupported file type (e.g., .jpeg/.png screenshot/image), show an English error explaining only Excel (.xlsx/.xls) and PDF are supported and that screenshots/images cannot be parsed. Ensure errors remain user-friendly (no stack traces)."
         },
         {
-          "path": "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
+          "path": "frontend/src/utils/userFacingError.ts",
           "operation": "modify",
-          "description": "Harden decoding to tolerate older blob shapes while ensuring normalized keys used for matching are computed from the stored design field using the current normalization rules, and keep decode failures surfaced as clear English errors."
+          "description": "Ensure mapping parser errors are surfaced as-is when they are already clear English messages (including new per-sheet rejection lists), while still avoiding exposing raw stack traces or internal exception formats."
         }
       ]
     },
     {
-      "id": "REQ-63",
-      "summary": "Improve Order List diagnostics when mapping is loaded but no orders match by adding concrete debug counts and a small sample of normalized keys.",
+      "id": "REQ-66",
+      "summary": "Show an English post-upload (and loaded) summary of the parsed karigar mapping: total entries and sheet name(s) used.",
       "acceptanceCriteria": [
-        "When mapping entries > 0 and matchedOrders == 0 and totalOrders > 0, the UI shows additional diagnostics in English beyond the existing generic bullet list (without exposing raw stack traces).",
-        "Diagnostics do not block normal usage and remain hidden when matching is working (matchedOrders > 0)."
+        "After a successful upload/save, the Karigar Mapping tab displays a summary including: total mapping entries parsed and the sheet name(s) used.",
+        "The summary is shown only when a mapping is currently loaded (either immediately after upload or after fetching existing mapping).",
+        "All summary text is in English and does not expose raw stack traces or internal exceptions."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/features/order-list/OrderListTab.tsx",
+          "path": "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
+          "operation": "create",
+          "description": "Create a small helper/hook that, given the currently loaded mapping blob, decodes it (via existing karigarMappingBlobCodec) and computes a user-facing summary: total parsed entries and sheet name(s) present/used. Ensure it returns safe English error strings on decode failure (no raw stack traces)."
+        },
+        {
+          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
           "operation": "modify",
-          "description": "Enhance the 'mapping loaded but no orders match' warning UI to include additional English diagnostics: distinct normalized order design key count and a small sample of normalized keys (and optionally mapping key count/sample), without exposing stack traces; keep the diagnostics hidden when matchedOrders > 0."
+          "description": "After a successful upload/save, compute and store an in-memory summary (total entries + sheet names from the freshly parsed workbook) and render it in the tab. Also, when an existing mapping blob is fetched, use the new summary helper/hook to display the same summary only when a mapping is loaded. Keep all summary text in English and avoid exposing internal exception details."
         }
       ]
     }

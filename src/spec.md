@@ -1,12 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Fix Order List enrichment so orders correctly map to Karigar/Generic names even when design-code formatting differs, and ensure mapping changes take effect immediately without stale lookups.
+**Goal:** Allow Karigar Mapping uploads to work with the same simple single-sheet tabular Excel format as the live-app example, without requiring sheet names “1”, “2”, or “3”.
 
 **Planned changes:**
-- Update design-code normalization used for matching to treat equivalent codes the same across orders and mapping uploads (case/whitespace/invisible characters + common separators like hyphens, underscores, slashes).
-- Ensure the decoded/derived mapping lookup is rebuilt after successful mapping upload and when stored mapping changes so Order List uses fresh data (no hard refresh needed).
-- Make mapping lookup construction resilient to older saved mapping blobs by recomputing the normalized key from the stored design value using current rules (not relying only on persisted `designNormalized`).
-- Improve Order List diagnostics when a mapping is loaded but no orders match by showing a small English hint with concrete debug counts/samples (only when matchedOrders == 0 and totalOrders > 0).
+- Update the karigar mapping Excel parser to detect and parse mappings from any sheet name when a sheet contains a recognizable header pair for Design and Karigar (with optional Name), while preserving existing sheet-priority behavior when sheets “1”/“3”/“2” are present (in that order).
+- When parsing fails, return a clear English error that lists which sheets were checked and why each was rejected (e.g., missing required columns such as Design and Karigar).
+- Improve Karigar Mapping upload UI copy to explicitly support the user’s tabular Excel format and clarify allowed upload types (Excel .xlsx/.xls and PDF), including an English error for unsupported uploads such as screenshots/images.
+- After a successful mapping upload (and when an existing mapping is loaded), display an English summary showing the number of mapping entries parsed and the sheet name(s) used.
 
-**User-visible outcome:** On the Order List tab, orders whose design codes differ only by separator/formatting are enriched with Generic Name and Karigar Name; mapping updates reflect immediately, and when nothing matches the UI provides clearer English diagnostics to help identify why.
+**User-visible outcome:** Users can upload a normal single-sheet Excel table (any sheet name) with columns like “Design”, “NAME”, and “KARIGAR” and get successful karigar mappings; if upload/parsing fails, they see a clear English reason; after success they see a brief summary of parsed entries and the sheet(s) used.
