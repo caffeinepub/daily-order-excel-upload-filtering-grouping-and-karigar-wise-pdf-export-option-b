@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGetDailyOrders, useGetKarigarMappingWorkbook } from '@/hooks/useQueries';
 import { useActorWithStatus } from '@/hooks/useActorWithStatus';
 import { normalizeDesignCode } from '@/utils/textNormalize';
@@ -65,6 +66,16 @@ export default function OrderListTab() {
 
     return groups;
   }, [enrichedOrders]);
+
+  // Get list of available karigars for filter
+  const availableKarigars = useMemo(() => {
+    const karigars = Array.from(ordersByKarigar.keys()).sort((a, b) => {
+      if (a === 'Unmapped') return 1;
+      if (b === 'Unmapped') return -1;
+      return a.localeCompare(b);
+    });
+    return karigars;
+  }, [ordersByKarigar]);
 
   // Calculate diagnostics with enhanced debug information
   const diagnostics = useMemo(() => {
@@ -139,11 +150,11 @@ export default function OrderListTab() {
         </Alert>
       )}
 
-      {/* Date selector */}
+      {/* Date and Karigar selector */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Date</CardTitle>
-          <CardDescription>Choose a date to view orders</CardDescription>
+          <CardTitle>Filter Orders</CardTitle>
+          <CardDescription>Choose a date and optionally filter by karigar</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-end gap-4">
@@ -161,6 +172,25 @@ export default function OrderListTab() {
                 <Calendar className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             </div>
+            
+            {availableKarigars.length > 0 && (
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="karigar-filter">Karigar</Label>
+                <Select value={selectedKarigar} onValueChange={setSelectedKarigar}>
+                  <SelectTrigger id="karigar-filter">
+                    <SelectValue placeholder="Select karigar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Karigars</SelectItem>
+                    {availableKarigars.map((karigar) => (
+                      <SelectItem key={karigar} value={karigar}>
+                        {karigar} ({ordersByKarigar.get(karigar)?.length || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

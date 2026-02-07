@@ -1,73 +1,55 @@
 {
   "kind": "build_request",
-  "title": "Fix karigar mapping matching by scanning all sheets and applying consistent design-code normalization",
+  "title": "Support master design file upload (Design Code + Generic Name + Karigar Name) and add karigar filtering on Order List",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Update karigar mapping Excel parsing to support the user’s Excel-style mapping table on any sheet name (Design + NAME + KARIGAR), even when the workbook also contains sheets named \"1\", \"2\", or \"3\". Priority sheets (1 → 3 → 2) should still be parsed first, but the parser must also scan remaining sheets and include any sheet that contains the required columns.",
+      "text": "Update the master mapping upload/parsing flow so the uploaded file is treated as the fixed “Master Design File” with required columns: Design Code, Generic Name, and Karigar Name. Remove the current flexible/optional rules messaging and align validation + parsing expectations to these three required fields (while still allowing any sheet name).",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-6"
         ],
         "quotes": [
-          "Pls start fixing the mapping issue from what you’ve learned from the screenshot I shared today."
+          "Remove these rules. Master design file design code, generic name, karigar name will be uploaded and it will be fixed."
         ]
       },
       "acceptanceCriteria": [
-        "Uploading a mapping workbook where the mapping table exists on a non-priority sheet name (e.g., \"Sheet1\") successfully loads mappings.",
-        "Uploading a mapping workbook that contains sheets named \"1\"/\"2\"/\"3\" but has the mapping table on a different sheet still loads mappings from that other sheet.",
-        "When multiple sheets contain valid mappings for the same Design code, entries from sheets are applied in priority order: \"1\" then \"3\" then \"2\" then the remaining sheets in workbook order (or a deterministic documented order).",
-        "The parser continues to treat columns case-insensitively and via header aliases, and continues to support optional NAME (generic name) and required KARIGAR."
+        "In the Mapping upload UI, user-facing instructions no longer mention optional columns or priority sheet rules; they specify that the master design file must contain Design Code, Generic Name, and Karigar Name.",
+        "Uploading an Excel/PDF mapping file that does not contain all three required columns results in a clear error message indicating which required column(s) are missing.",
+        "When a valid master design file is uploaded, the saved mapping blob contains entries that include design, genericName, and karigar for each row (as applicable), and decoding continues to work with useKarigarMappingLookup()."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Fix mapping lookup application so that Order List enrichment uses mappings from any parsed sheet name, not only sheets \"1\", \"3\", and \"2\". Preserve the existing priority behavior for sheets \"1\", \"3\", \"2\" but fall back to all other sheets when present, ensuring orders enrich correctly when the mapping workbook uses arbitrary sheet names.",
+      "text": "Ensure orders are matched/enriched using master design file design codes (using the existing canonical design normalization) and expose a Karigar filter control on the Order List page that filters the displayed orders/groups by the selected karigar.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-6"
         ],
         "quotes": [
-          "Pls start fixing the mapping issue from what you’ve learned from the screenshot I shared today."
+          "Also match such codes with the orders and filter orders as per karigar on order list page."
         ]
       },
       "acceptanceCriteria": [
-        "If a mapping blob contains only non-priority sheet names, Order List still enriches orders (Generic Name and Karigar) when Design codes match.",
-        "If a mapping blob contains both priority and non-priority sheets, Order List enrichment prefers matches from priority sheets but still matches against non-priority sheets when a Design is not present in priority sheets.",
-        "The Order List “Mapping Status” section no longer shows “mapping loaded but no orders match” for the user’s provided scenario where the mapping table contains matching design codes (assuming normalization rules make them equivalent)."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Ensure design-code matching uses a single shared canonical normalization for both mapping ingestion and order enrichment (using the existing normalizeDesignCode behavior) and add/keep clear diagnostics to help detect remaining mismatches (e.g., show sample normalized keys from orders and mapping when there are 0 matches).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Pls start fixing the mapping issue from what you’ve learned from the screenshot I shared today."
-        ]
-      },
-      "acceptanceCriteria": [
-        "Order designs and mapping designs are both normalized using the same normalizeDesignCode function before lookup.",
-        "When there are 0 matches but a mapping is loaded, the UI shows debug samples of normalized order keys and normalized mapping keys (no crash).",
-        "Re-uploading a mapping workbook after this change immediately affects matching without requiring backend schema changes or manual data migration (existing stored blobs remain decodable and usable)."
+        "Order List enrichment continues to match orders to mappings via normalized design code comparison (orders show Generic Name and Karigar Name when mapped).",
+        "Order List page provides a user control (e.g., Select) to choose a karigar (including an “All” option).",
+        "Selecting a specific karigar shows only that karigar’s orders; selecting “All” shows all karigar groups (current behavior preserved).",
+        "The filter options include at least all karigars present in the enriched order data plus an Unmapped option (when applicable)."
       ]
     }
   ],
   "constraints": [
-    "Do not edit files under frontend/src/components/ui (compose them instead).",
-    "Do not edit immutable paths: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, frontend/src/components/ui.",
-    "Backend must remain single-actor (all Motoko logic in backend/main.mo)."
+    "Backend remains single-actor (all Motoko logic in backend/main.mo).",
+    "Do not edit frontend immutable paths listed in SYSTEM_CONTEXT (compose existing UI components instead).",
+    "Use English for any user-facing text."
   ],
   "nonGoals": [
-    "Changing backend storage schema for mappings (the mapping workbook remains stored as an ExternalBlob).",
-    "Adding new authentication providers (only Internet Identity if needed).",
-    "Building OCR/screenshot-to-Excel parsing (images/screenshots remain unsupported as upload inputs)."
+    "Adding third-party authentication providers (only Internet Identity).",
+    "Adding external databases or non-Motoko backend services.",
+    "Parsing screenshots/images for mapping upload (no OCR scope)."
   ],
   "imageRequirements": {
     "required": [],

@@ -1,69 +1,53 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix karigar mapping matching by scanning all sheets and applying consistent design-code normalization",
+  "title": "Fixed Master Design File upload + Karigar filtering on Order List",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Parse karigar mapping tables from priority sheets first, then scan all remaining sheets for required columns regardless of sheet name.",
+      "summary": "Make the mapping upload a fixed Master Design File with required columns (Design Code, Generic Name, Karigar Name) and update UI messaging + validation accordingly.",
       "acceptanceCriteria": [
-        "Uploading a mapping workbook where the mapping table exists on a non-priority sheet name (e.g., \"Sheet1\") successfully loads mappings.",
-        "Uploading a mapping workbook that contains sheets named \"1\"/\"2\"/\"3\" but has the mapping table on a different sheet still loads mappings from that other sheet.",
-        "When multiple sheets contain valid mappings for the same Design code, entries from sheets are applied in priority order: \"1\" then \"3\" then \"2\" then the remaining sheets in workbook order (or a deterministic documented order).",
-        "The parser continues to treat columns case-insensitively and via header aliases, and continues to support optional NAME (generic name) and required KARIGAR."
+        "In the Mapping upload UI, user-facing instructions no longer mention optional columns or priority sheet rules; they specify that the master design file must contain Design Code, Generic Name, and Karigar Name.",
+        "Uploading an Excel/PDF mapping file that does not contain all three required columns results in a clear error message indicating which required column(s) are missing.",
+        "When a valid master design file is uploaded, the saved mapping blob contains entries that include design, genericName, and karigar for each row (as applicable), and decoding continues to work with useKarigarMappingLookup()."
       ],
       "file_operations": [
         {
           "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "operation": "modify",
-          "description": "Update Excel workbook parsing to always: (1) attempt sheets \"1\"→\"3\"→\"2\" when present, and (2) additionally scan all remaining sheets (any name) and include any sheet containing the required Design + Karigar columns (with optional Name). Ensure scan order after priority sheets is deterministic (documented in code comments), and keep existing case-insensitive header alias behavior and design-code normalization via normalizeDesignCode."
+          "description": "Update parsing/validation to treat the upload as a fixed Master Design File: require header presence for Design Code + Generic Name + Karigar Name (while still allowing any sheet name), and emit clear missing-column errors naming the exact missing required column(s) for both Excel and PDF parsing."
+        },
+        {
+          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+          "operation": "modify",
+          "description": "Update Mapping upload UI copy to remove optional-column and priority-sheet messaging; rename/position the upload as a Master Design File with the three required columns (English text), and ensure error rendering remains clear for missing required columns."
+        },
+        {
+          "path": "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
+          "operation": "modify",
+          "description": "Adjust encoding/decoding expectations to align with the fixed Master Design File fields (design, karigar, genericName) while maintaining backward-compatible decoding for existing blobs and preserving useKarigarMappingLookup() behavior."
         }
       ]
     },
     {
       "id": "REQ-2",
-      "summary": "Apply mapping lookups using mappings from all parsed sheet names, preserving priority-sheet preference while falling back to other sheets.",
+      "summary": "Add a Karigar filter control on Order List and filter displayed groups/orders by selected karigar, including All and Unmapped options, while keeping design-code normalization enrichment.",
       "acceptanceCriteria": [
-        "If a mapping blob contains only non-priority sheet names, Order List still enriches orders (Generic Name and Karigar) when Design codes match.",
-        "If a mapping blob contains both priority and non-priority sheets, Order List enrichment prefers matches from priority sheets but still matches against non-priority sheets when a Design is not present in priority sheets.",
-        "The Order List “Mapping Status” section no longer shows “mapping loaded but no orders match” for the user’s provided scenario where the mapping table contains matching design codes (assuming normalization rules make them equivalent)."
+        "Order List enrichment continues to match orders to mappings via normalized design code comparison (orders show Generic Name and Karigar Name when mapped).",
+        "Order List page provides a user control (e.g., Select) to choose a karigar (including an “All” option).",
+        "Selecting a specific karigar shows only that karigar’s orders; selecting “All” shows all karigar groups (current behavior preserved).",
+        "The filter options include at least all karigars present in the enriched order data plus an Unmapped option (when applicable)."
       ],
       "file_operations": [
-        {
-          "path": "frontend/src/features/order-list/useKarigarMappingLookup.ts",
-          "operation": "modify",
-          "description": "Expand lookup construction to read mappings from all sheets present in the decoded mapping blob, applying entries in this order: \"1\" then \"3\" then \"2\", then all remaining sheet names in a deterministic order. Preserve existing behavior where earlier sheets win for duplicate normalized design keys, and keep canonical normalization via normalizeDesignCode for every entry."
-        },
-        {
-          "path": "frontend/src/features/karigar-mapping/getMappingSheetReadOrder.ts",
-          "operation": "create",
-          "description": "Add a small helper that computes the deterministic sheet read order given available sheet names: priority sheets (\"1\",\"3\",\"2\") first (if present), then remaining sheets in a documented deterministic order (e.g., workbook/decoded key order fallback to localeCompare sorting). This helper should be used by mapping lookup logic to ensure consistent priority + fallback behavior."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Use a single shared canonical normalizeDesignCode for both ingestion and matching, and keep clear diagnostics when there are zero matches.",
-      "acceptanceCriteria": [
-        "Order designs and mapping designs are both normalized using the same normalizeDesignCode function before lookup.",
-        "When there are 0 matches but a mapping is loaded, the UI shows debug samples of normalized order keys and normalized mapping keys (no crash).",
-        "Re-uploading a mapping workbook after this change immediately affects matching without requiring backend schema changes or manual data migration (existing stored blobs remain decodable and usable)."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-          "operation": "modify",
-          "description": "Ensure mapping ingestion continues to compute and store designNormalized using the shared normalizeDesignCode function for every parsed row, so the same canonical rules are used at ingest time."
-        },
         {
           "path": "frontend/src/features/order-list/OrderListTab.tsx",
           "operation": "modify",
-          "description": "Refine/retain the zero-match diagnostics to explicitly surface sample normalized order keys and sample normalized mapping keys when mapping is loaded but matchedOrders is 0. Ensure this remains resilient (no crashes) and continues to use normalizeDesignCode for order-side normalization."
+          "description": "Add a Karigar filter UI control (English text) that is populated from enriched order data (unique karigars + All, and Unmapped when applicable), wire it to selectedKarigar state, and filter the rendered group(s) accordingly while preserving existing normalized design-code enrichment."
         },
         {
-          "path": "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
+          "path": "frontend/src/features/order-list/components/KarigarOrderGroups.tsx",
           "operation": "modify",
-          "description": "Keep backward-compatible decoding behavior that recomputes designNormalized from the stored design field using normalizeDesignCode so older stored blobs immediately benefit from updated normalization and matching without backend changes."
+          "description": "Ensure group rendering behavior correctly supports the new filter options, especially the Unmapped group (only shown/selectable when there are unmapped orders) and preserves existing All behavior."
         }
       ]
     }

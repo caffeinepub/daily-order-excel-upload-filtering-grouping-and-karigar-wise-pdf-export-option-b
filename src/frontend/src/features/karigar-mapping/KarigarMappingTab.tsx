@@ -148,7 +148,7 @@ export default function KarigarMappingTab() {
       <div className="mb-8 space-y-2">
         <h2 className="text-2xl font-bold tracking-tight">Karigar Mapping</h2>
         <p className="text-muted-foreground">
-          Upload karigar mapping file to enrich orders with generic names and karigar assignments
+          Upload Master Design File to enrich orders with generic names and karigar assignments
         </p>
       </div>
 
@@ -180,7 +180,7 @@ export default function KarigarMappingTab() {
       {uploadSuccess && (
         <Alert className="border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100">
           <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-          <AlertDescription>Karigar mapping uploaded successfully!</AlertDescription>
+          <AlertDescription>Master Design File uploaded successfully!</AlertDescription>
         </Alert>
       )}
 
@@ -206,9 +206,9 @@ export default function KarigarMappingTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upload Mapping File</CardTitle>
+          <CardTitle>Upload Master Design File</CardTitle>
           <CardDescription>
-            Upload an Excel file (.xlsx/.xls) or PDF containing design codes and karigar assignments
+            Upload an Excel file (.xlsx/.xls) or PDF containing the master design file with required columns
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -236,7 +236,7 @@ export default function KarigarMappingTab() {
           {existingMapping && !isUploading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <FileText className="h-4 w-4" />
-              <span>A mapping file is currently loaded</span>
+              <span>A Master Design File is currently loaded</span>
             </div>
           )}
 
@@ -244,21 +244,15 @@ export default function KarigarMappingTab() {
             <h4 className="font-medium text-sm">File Format Requirements</h4>
             <div className="text-sm text-muted-foreground space-y-2">
               <p>
-                <strong>Excel files:</strong> Can use any sheet name (e.g., "Sheet1") as long as it contains the required columns.
-                If your file has sheets named "1", "2", or "3", those will be checked first in priority order (1 → 3 → 2).
+                <strong>Master Design File:</strong> The file must contain all three required columns. Any sheet name is supported.
               </p>
               <p>
                 <strong>Required columns:</strong>
               </p>
               <ul className="list-disc list-inside ml-2 space-y-1">
                 <li><strong>Design Code</strong> (or "Design", "Product Code", "Item Code")</li>
-                <li><strong>Karigar</strong> (or "Artisan", "Worker", "Craftsman")</li>
-              </ul>
-              <p>
-                <strong>Optional columns:</strong>
-              </p>
-              <ul className="list-disc list-inside ml-2 space-y-1">
-                <li><strong>Name</strong> (or "Generic Name", "Product Name", "Description") - for generic product names</li>
+                <li><strong>Generic Name</strong> (or "Name", "Product Name", "Description")</li>
+                <li><strong>Karigar Name</strong> (or "Karigar", "Artisan", "Worker", "Craftsman")</li>
               </ul>
               <p className="text-xs mt-2">
                 <strong>Note:</strong> Screenshots and images cannot be parsed. Please use Excel or PDF files only.

@@ -48,7 +48,7 @@ export default function KarigarOrderGroups({
     }
   };
 
-  // If a specific karigar is selected, show only that group
+  // If a specific karigar is selected (not "all"), show only that group
   if (selectedKarigar !== 'all') {
     const karigarOrders = ordersByKarigar.get(selectedKarigar) || [];
     
@@ -106,7 +106,7 @@ export default function KarigarOrderGroups({
     );
   }
 
-  // Show all groups
+  // Show all groups when "all" is selected
   const sortedKarigars = Array.from(ordersByKarigar.keys()).sort((a, b) => {
     if (a === 'Unmapped') return 1;
     if (b === 'Unmapped') return -1;
