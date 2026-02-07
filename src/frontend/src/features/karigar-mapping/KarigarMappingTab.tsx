@@ -26,7 +26,7 @@ export default function KarigarMappingTab() {
   const saveMappingWorkbook = useSaveKarigarMappingWorkbook();
   
   // Get summary of existing mapping
-  const { data: existingSummary } = useKarigarMappingSummary(existingMapping);
+  const { summary: existingSummary } = useKarigarMappingSummary(existingMapping || null);
 
   // Clear last upload summary when new mapping is loaded
   useEffect(() => {

@@ -18,8 +18,8 @@ export interface ParsedKarigarMapping {
 /**
  * Parse karigar mapping workbook with flexible sheet support:
  * - Priority: sheets "1", "3", "2" (if they exist)
- * - Fallback: any sheet with Design + Karigar columns
- * Also supports PDF extraction
+ * - Additionally: scan ALL other sheets for Design + Karigar columns
+ * - Supports PDF extraction
  */
 export async function parseKarigarMapping(file: File): Promise<ParsedKarigarMapping> {
   const fileType = file.type.toLowerCase();
@@ -213,33 +213,35 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
         
         // Priority sheets (traditional format)
         const prioritySheets = ['1', '3', '2'];
-        const hasPrioritySheets = prioritySheets.some(name => workbook.SheetNames.includes(name));
-
-        if (hasPrioritySheets) {
-          // Traditional behavior: only check priority sheets in order
-          for (const sheetName of prioritySheets) {
-            if (!workbook.SheetNames.includes(sheetName)) {
-              continue;
-            }
-
-            const worksheet = workbook.Sheets[sheetName];
-            const parseResult = tryParseSheet(sheetName, worksheet, window.XLSX);
-            parseResults.push(parseResult);
-
-            if (parseResult.entries.size > 0) {
-              result[sheetName] = { entries: parseResult.entries };
-            }
+        
+        // ALWAYS scan priority sheets first if they exist
+        for (const sheetName of prioritySheets) {
+          if (!workbook.SheetNames.includes(sheetName)) {
+            continue;
           }
-        } else {
-          // Fallback: scan all sheets for any with Design + Karigar columns
-          for (const sheetName of workbook.SheetNames) {
-            const worksheet = workbook.Sheets[sheetName];
-            const parseResult = tryParseSheet(sheetName, worksheet, window.XLSX);
-            parseResults.push(parseResult);
 
-            if (parseResult.entries.size > 0) {
-              result[sheetName] = { entries: parseResult.entries };
-            }
+          const worksheet = workbook.Sheets[sheetName];
+          const parseResult = tryParseSheet(sheetName, worksheet, window.XLSX);
+          parseResults.push(parseResult);
+
+          if (parseResult.entries.size > 0) {
+            result[sheetName] = { entries: parseResult.entries };
+          }
+        }
+
+        // ADDITIONALLY scan ALL remaining sheets (any name) for Design + Karigar columns
+        for (const sheetName of workbook.SheetNames) {
+          // Skip if already processed as priority sheet
+          if (prioritySheets.includes(sheetName)) {
+            continue;
+          }
+
+          const worksheet = workbook.Sheets[sheetName];
+          const parseResult = tryParseSheet(sheetName, worksheet, window.XLSX);
+          parseResults.push(parseResult);
+
+          if (parseResult.entries.size > 0) {
+            result[sheetName] = { entries: parseResult.entries };
           }
         }
 
@@ -250,12 +252,7 @@ async function parseExcelMapping(file: File): Promise<ParsedKarigarMapping> {
           // Build detailed error message
           const errorLines: string[] = [];
           
-          if (hasPrioritySheets) {
-            errorLines.push('No valid design-karigar mappings found in sheets "1", "2", or "3".');
-          } else {
-            errorLines.push('No valid design-karigar mappings found in any sheet.');
-          }
-          
+          errorLines.push('No valid design-karigar mappings found in any sheet.');
           errorLines.push('');
           errorLines.push('Checked sheets:');
           

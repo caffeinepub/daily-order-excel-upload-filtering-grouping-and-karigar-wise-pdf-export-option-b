@@ -1,47 +1,60 @@
 import { useQuery } from '@tanstack/react-query';
 import { ExternalBlob } from '@/backend';
 import { decodeBlobToMapping } from './karigarMappingBlobCodec';
+import { getMappingSheetReadOrder } from './getMappingSheetReadOrder';
 
 export interface MappingSummary {
   totalEntries: number;
   sheetNames: string[];
-  error?: string;
 }
 
 /**
- * Hook to compute a user-facing summary of the karigar mapping blob
- * Returns total entries and sheet names used
+ * Hook to decode a karigar mapping blob and compute a user-facing summary.
+ * Returns total entries and sheet names used, with safe error handling.
  */
-export function useKarigarMappingSummary(blob: ExternalBlob | null | undefined) {
-  return useQuery<MappingSummary>({
-    queryKey: ['karigarMappingSummary', blob?.getDirectURL()],
-    queryFn: async (): Promise<MappingSummary> => {
-      if (!blob) {
-        return { totalEntries: 0, sheetNames: [] };
+export function useKarigarMappingSummary(mappingBlob: ExternalBlob | null): {
+  summary: MappingSummary | null;
+  isLoading: boolean;
+  error: string | null;
+} {
+  const query = useQuery({
+    queryKey: ['mappingSummary', mappingBlob?.getDirectURL()],
+    queryFn: async () => {
+      if (!mappingBlob) {
+        return null;
       }
 
       try {
-        const mappingData = await decodeBlobToMapping(blob);
+        const mappingData = await decodeBlobToMapping(mappingBlob);
         
-        const sheetNames = Object.keys(mappingData);
-        const totalEntries = Object.values(mappingData).reduce(
-          (sum, sheet) => sum + sheet.entries.length,
-          0
-        );
+        // Get all sheet names in deterministic order
+        const availableSheetNames = Object.keys(mappingData);
+        const orderedSheetNames = getMappingSheetReadOrder(availableSheetNames);
+        
+        // Count total entries across all sheets
+        let totalEntries = 0;
+        for (const sheetName of orderedSheetNames) {
+          const sheet = mappingData[sheetName];
+          if (sheet && sheet.entries) {
+            totalEntries += sheet.entries.length;
+          }
+        }
 
         return {
           totalEntries,
-          sheetNames,
+          sheetNames: orderedSheetNames,
         };
       } catch (error: any) {
-        return {
-          totalEntries: 0,
-          sheetNames: [],
-          error: `Failed to read mapping: ${error.message}`,
-        };
+        throw new Error(`Failed to decode mapping: ${error.message || 'Unknown error'}`);
       }
     },
-    enabled: !!blob,
-    staleTime: Infinity, // Summary doesn't change unless blob changes
+    enabled: !!mappingBlob,
+    retry: false,
   });
+
+  return {
+    summary: query.data || null,
+    isLoading: query.isLoading,
+    error: query.error ? String(query.error) : null,
+  };
 }

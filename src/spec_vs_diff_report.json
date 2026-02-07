@@ -1,43 +1,46 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T18:58:15.537Z",
-  "summary": "Diff adds a new hook to compute and fetch a user-facing karigar-mapping summary (entries + sheet names) and modifies the karigar-mapping parser/UI to support flexible sheet/header detection and improved upload validation/error messages. However, due to truncation, several acceptance-criteria details (especially the exact UI copy and the parser’s final aggregated error that lists checked sheets + rejection reasons, and the actual rendering of the summary) cannot be fully verified from the provided diff excerpt.",
+  "generatedAt": "2026-02-07T13:01:23.694Z",
+  "summary": "Diff implements multi-sheet karigar mapping support with deterministic sheet read order (priority \"1\"→\"3\"→\"2\" then others alphabetically) and updates mapping lookup to use all parsed sheets with shared design-code normalization for lookup keys. However, the requested UI diagnostics showing sample normalized keys when there are 0 matches are not evidenced in the provided diff summary. Diff also adds unrequested PDF mapping parsing and related upload handling.",
   "missing_requirements": [
     {
-      "id": "REQ-64",
-      "requirement": "If no sheets contain a detectable Design + Karigar header pair, the parser fails with a clear English error that lists which sheets were checked and why they were rejected (e.g., missing required columns).",
-      "reason": "The diff shows per-sheet parsing attempts returning detailed per-sheet errors (e.g., empty sheet / missing columns), but the provided excerpt is truncated before showing the top-level Excel workbook logic that aggregates results across sheets and formats the final error listing all checked sheets and rejection reasons.",
+      "id": "REQ-3",
+      "requirement": "When there are 0 matches but a mapping is loaded, the UI shows debug samples of normalized order keys and normalized mapping keys (no crash).",
+      "reason": "The diff summary shows normalization and decoding logic updates, but does not include any evidenced UI change that displays sample normalized keys in the '0 matches' scenario.",
       "evidence": [
-        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts (truncated)"
-      ]
-    },
-    {
-      "id": "REQ-65",
-      "requirement": "Karigar Mapping tab’s “File Format Requirements” text states that the mapping can be any sheet name, as long as the file contains columns for Design Code (Design/Product Code), Karigar, and optional Name/Generic Name.",
-      "reason": "The diff shows new upload-time validation and error messages, but the excerpt does not show any updated static “File Format Requirements” copy in the tab UI. The relevant portion of the component is truncated before any such text could be verified.",
-      "evidence": [
-        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx (truncated)"
-      ]
-    },
-    {
-      "id": "REQ-66",
-      "requirement": "After a successful upload/save, the Karigar Mapping tab displays a summary including: total mapping entries parsed and the sheet name(s) used; shown only when a mapping is currently loaded.",
-      "reason": "A summary hook is added and the tab fetches `existingSummary` and maintains `lastUploadSummary` state, but the diff excerpt is truncated before any JSX that actually renders the summary, so the UI behavior cannot be confirmed from the provided evidence.",
-      "evidence": [
+        "frontend/src/features/order-list/useKarigarMappingLookup.ts",
         "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
-        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx (truncated)"
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx"
       ]
     }
   ],
-  "hallucinated_features": [],
-  "confidence": 0.62,
+  "hallucinated_features": [
+    {
+      "description": "Support for parsing karigar mapping from PDF files (parsePdfMapping) and accepting PDFs in mapping upload flow.",
+      "reason": "BuildRequest is specifically about Excel workbook sheet scanning and consistent design-code normalization; PDF mapping parsing is not requested and the non-goals explicitly say OCR/screenshot-to-Excel parsing is unsupported (PDF support is a new capability beyond the request).",
+      "evidence": [
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx"
+      ]
+    },
+    {
+      "description": "Special handling to detect and avoid treating numeric ratios as generic names (looksLikeNumericRatio).",
+      "reason": "Not requested by the BuildRequest requirements/acceptance criteria; it changes parsing heuristics beyond 'case-insensitive headers with aliases' and optional NAME handling.",
+      "evidence": [
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
+      ]
+    }
+  ],
+  "confidence": 0.67,
   "changed_files": [
     "frontend-file-summaries.txt",
     "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
     "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+    "frontend/src/features/karigar-mapping/getMappingSheetReadOrder.ts",
     "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
-    "frontend/src/utils/userFacingError.ts",
+    "frontend/src/features/order-list/useKarigarMappingLookup.ts",
     "project_state.json"
   ]
 }

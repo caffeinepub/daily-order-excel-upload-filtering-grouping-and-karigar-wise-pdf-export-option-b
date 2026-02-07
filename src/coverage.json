@@ -1,7 +1,7 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T18:58:15.541Z",
+  "generatedAt": "2026-02-07T13:01:23.697Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
@@ -11,44 +11,40 @@
     "implemented": 3,
     "items": [
       {
-        "id": "REQ-64",
-        "summary": "Update the karigar mapping Excel parser so it can successfully parse mapping workbooks that do NOT contain sheets named \"1\", \"2\", or \"3\" (e.g., a single-sheet table like the user’s example with columns \"Design\", \"NAME\", and \"KARIGAR\"), and still preserve the existing priority behavior for workbooks that do contain sheets \"1\"/\"3\"/\"2\".",
+        "id": "REQ-1",
+        "summary": "Update karigar mapping Excel parsing to support the user’s Excel-style mapping table on any sheet name (Design + NAME + KARIGAR), even when the workbook also contains sheets named \"1\", \"2\", or \"3\". Priority sheets (1 → 3 → 2) should still be parsed first, but the parser must also scan remaining sheets and include any sheet that contains the required columns.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
         ],
         "matchedFiles": [
-          "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
         ]
       },
       {
-        "id": "REQ-65",
-        "summary": "Improve karigar mapping upload UI copy and error messaging to explicitly support the user’s tabular mapping format (like the screenshot) and to clearly explain why a file cannot be mapped (e.g., unsupported file type such as an image/screenshot, or missing required columns).",
+        "id": "REQ-2",
+        "summary": "Fix mapping lookup application so that Order List enrichment uses mappings from any parsed sheet name, not only sheets \"1\", \"3\", and \"2\". Preserve the existing priority behavior for sheets \"1\", \"3\", \"2\" but fall back to all other sheets when present, ensuring orders enrich correctly when the mapping workbook uses arbitrary sheet names.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-          "frontend/src/utils/userFacingError.ts"
+          "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+          "frontend/src/features/karigar-mapping/getMappingSheetReadOrder.ts"
         ],
         "matchedFiles": [
-          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-          "frontend/src/utils/userFacingError.ts"
+          "frontend/src/features/order-list/useKarigarMappingLookup.ts",
+          "frontend/src/features/karigar-mapping/getMappingSheetReadOrder.ts"
         ]
       },
       {
-        "id": "REQ-66",
-        "summary": "After a successful karigar mapping upload, show a small English summary in the Karigar Mapping tab indicating the number of mapping entries parsed and the sheet(s) used, to help users confirm that the uploaded mapping resembles the live-app example.",
+        "id": "REQ-3",
+        "summary": "Ensure design-code matching uses a single shared canonical normalization for both mapping ingestion and order enrichment (using the existing normalizeDesignCode behavior) and add/keep clear diagnostics to help detect remaining mismatches (e.g., show sample normalized keys from orders and mapping when there are 0 matches).",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
-          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx"
+          "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
+          "frontend/src/features/order-list/OrderListTab.tsx",
+          "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts"
         ],
         "matchedFiles": [
-          "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
-          "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx"
+          "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts"
         ]
       }
     ]
@@ -60,8 +56,9 @@
     "frontend-implementation-plan.json",
     "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
     "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+    "frontend/src/features/karigar-mapping/getMappingSheetReadOrder.ts",
     "frontend/src/features/karigar-mapping/useKarigarMappingSummary.ts",
-    "frontend/src/utils/userFacingError.ts",
+    "frontend/src/features/order-list/useKarigarMappingLookup.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",
