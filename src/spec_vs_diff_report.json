@@ -1,13 +1,39 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T13:15:03.738Z",
-  "summary": "Diff largely implements the requested Master Design File parsing/storage updates (3 required columns) and adds a Karigar filter on Order List with enrichment via normalized design-code lookup. Some user-facing UI instruction changes are not fully verifiable due to truncation. Diff also introduces several extra behaviors not explicitly requested (PDF parsing support, image/screenshot handling messages, export-per-karigar UI, extra diagnostics).",
+  "generatedAt": "2026-02-07T14:04:04.495Z",
+  "summary": "The diff adds PDF.js script loading via CDN in index.html and introduces a PDF.js runtime helper (ensure/load + workerSrc configuration). However, the provided diff summary does not clearly show that the worker/library initialization is invoked before PDF parsing, and the user-facing missing-PDF.js message does not include the requested Excel fallback guidance. Additional unrequested UX logic for rejecting image uploads was added.",
   "missing_requirements": [
     {
       "id": "REQ-1",
-      "requirement": "Mapping upload UI instructions should no longer mention optional columns or priority sheet rules and should specify the master design file must contain Design Code, Generic Name, and Karigar Name.",
-      "reason": "The parser/codec changes clearly enforce 3 required columns, but the diff for the upload UI text is truncated before showing the instructional copy; cannot confirm that optional/priority-sheet messaging was removed and replaced per AC.",
+      "requirement": "The PDF.js library is available at runtime as window.pdfjsLib before parseKarigarMapping(file) attempts to parse a PDF.",
+      "reason": "While PDF.js is included in frontend/index.html and helper functions exist, the diff summary does not show initializePdfJs()/ensurePdfJsLoaded() being called before (or inside) the PDF parsing path (e.g., inside parsePdfMapping). The parseKarigarMapping snippet shows imports but not actual usage prior to parsing.",
+      "evidence": [
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts (truncated)",
+        "frontend/src/utils/pdfjs.ts"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "Configure PDF.js worker setup at runtime (e.g., set pdfjsLib.GlobalWorkerOptions.workerSrc) so PDF parsing works reliably in production builds on the Internet Computer.",
+      "reason": "A workerSrc configuration helper is added, but the diff summary does not show it being invoked at runtime before PDF parsing begins (e.g., via initializePdfJs() call in the PDF parsing flow).",
+      "evidence": [
+        "frontend/src/utils/pdfjs.ts",
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts (truncated)"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "requirement": "Improve the Karigar Mapping upload error message for missing PDF.js so it is actionable for end users (English), including guidance to retry or use Excel as a fallback when PDF parsing is unavailable.",
+      "reason": "The thrown error message for missing PDF.js says to refresh and try again, but does not mention using Excel (.xlsx/.xls) as a fallback when PDF parsing is unavailable.",
+      "evidence": [
+        "frontend/src/utils/pdfjs.ts"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "requirement": "The error is shown in the existing Karigar Mapping tab error area and preserves whitespace formatting (whitespace-pre-wrap).",
+      "reason": "KarigarMappingTab.tsx is truncated and does not show the error rendering area/styling. The diff summary does not provide evidence that whitespace-pre-wrap is applied to the displayed error text.",
       "evidence": [
         "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx (truncated)"
       ]
@@ -15,42 +41,28 @@
   ],
   "hallucinated_features": [
     {
-      "description": "Added/extended support for parsing Master Design File from PDF (via PDF.js) in addition to Excel.",
-      "reason": "BuildRequest allows uploading Excel/PDF mapping files but does not require implementing PDF parsing/extraction logic; this is additional scope beyond the stated requirements.",
-      "evidence": [
-        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts (truncated)"
-      ]
-    },
-    {
-      "description": "Explicit handling and user-facing errors for images/screenshots being unsupported mapping inputs.",
-      "reason": "Non-goals mention no OCR/screenshot parsing, but the requirement did not ask for explicit image detection and custom messaging; this is extra behavior.",
+      "description": "New upload validation and messaging specifically for screenshots/images (explicitly rejecting image files with a multi-line guidance message).",
+      "reason": "The BuildRequest only asks to fix PDF.js loading/worker configuration and improve missing-PDF.js messaging; it does not request adding image/screenshot detection or new copy for that case.",
       "evidence": [
         "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx (truncated)"
       ]
     },
     {
-      "description": "Per-karigar export button/flow on the Order List grouped view (exports orders for the selected karigar).",
-      "reason": "REQ-2 only requests a Karigar filter control for displayed orders/groups; export functionality is not requested.",
+      "description": "Added a generic withRetryMessage() helper that appends \"Click retry to try again.\"",
+      "reason": "The BuildRequest does not mention adding a retry CTA string or a retry mechanism; it only asks for guidance such as refresh/retry or use Excel when PDF.js is missing.",
       "evidence": [
-        "frontend/src/features/order-list/components/KarigarOrderGroups.tsx (truncated)"
-      ]
-    },
-    {
-      "description": "Additional diagnostics/debug information on Order List (mapping/order key samples, match stats).",
-      "reason": "Not requested by REQ-2; appears to be an added debugging feature.",
-      "evidence": [
-        "frontend/src/features/order-list/OrderListTab.tsx (truncated)"
+        "frontend/src/utils/userFacingError.ts"
       ]
     }
   ],
-  "confidence": 0.66,
+  "confidence": 0.62,
   "changed_files": [
     "frontend-file-summaries.txt",
+    "frontend/index.html",
     "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
     "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-    "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
-    "frontend/src/features/order-list/OrderListTab.tsx",
-    "frontend/src/features/order-list/components/KarigarOrderGroups.tsx",
+    "frontend/src/utils/pdfjs.ts",
+    "frontend/src/utils/userFacingError.ts",
     "project_state.json"
   ]
 }

@@ -6,6 +6,11 @@ export function getUserFacingError(error: unknown): string {
   
   const errorMessage = error instanceof Error ? error.message : String(error);
   
+  // PDF.js library errors
+  if (errorMessage.includes('PDF.js library not loaded')) {
+    return errorMessage; // Already formatted with instructions
+  }
+  
   // Actor/backend connection errors
   if (errorMessage.includes('Actor not available')) {
     return 'Connecting to backend... Please wait a moment and try again.';

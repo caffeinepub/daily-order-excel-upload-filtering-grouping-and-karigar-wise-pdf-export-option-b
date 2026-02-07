@@ -1,4 +1,5 @@
 import { normalizeCellValue, normalizeHeader, matchesHeaderAlias, normalizeDesignCode } from '@/utils/textNormalize';
+import { initializePdfJs, ensurePdfJsLoaded } from '@/utils/pdfjs';
 
 // Extend Window interface for PDF.js
 declare global {
@@ -274,8 +275,16 @@ async function parsePdfMapping(file: File): Promise<ParsedKarigarMapping> {
           return;
         }
 
-        if (!window.pdfjsLib) {
-          reject(new Error('PDF.js library not loaded'));
+        // Ensure PDF.js is loaded and configured before attempting to parse
+        try {
+          ensurePdfJsLoaded();
+          initializePdfJs();
+        } catch (error: any) {
+          reject(new Error(
+            'PDF.js library not loaded.\n\n' +
+            'Please refresh the page and try again.\n\n' +
+            'If the problem persists, you can upload the mapping as an Excel file (.xlsx or .xls) instead.'
+          ));
           return;
         }
 
@@ -391,7 +400,12 @@ async function parsePdfMapping(file: File): Promise<ParsedKarigarMapping> {
           },
         });
       } catch (error: any) {
-        reject(new Error(`Failed to parse PDF: ${error.message}`));
+        // Check if it's a PDF.js specific error
+        if (error.message && error.message.includes('PDF.js')) {
+          reject(error); // Already formatted
+        } else {
+          reject(new Error(`Failed to parse PDF: ${error.message}`));
+        }
       }
     };
 

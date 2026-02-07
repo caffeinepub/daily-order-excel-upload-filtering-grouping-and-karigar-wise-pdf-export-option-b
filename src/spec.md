@@ -1,12 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Make the mapping upload a fixed “Master Design File” format (Design Code + Generic Name + Karigar Name) and add Karigar-based filtering on the Order List.
+**Goal:** Fix Karigar Mapping PDF uploads by ensuring PDF.js is loaded and configured (including worker setup) so PDFs can be parsed without the “PDF.js library not loaded” error.
 
 **Planned changes:**
-- Update Mapping upload UI copy to remove flexible/optional rules and clearly require exactly these columns in the uploaded Master Design File: Design Code, Generic Name, Karigar Name (allow any sheet name).
-- Update mapping validation/parsing so uploads missing any required column show a clear error listing missing column(s), and successful uploads store mapping rows with design, genericName, and karigar, continuing to work with `useKarigarMappingLookup()`.
-- Ensure Order List enrichment matches orders to mappings via normalized design code, displaying Generic Name and Karigar Name when mapped.
-- Add a Karigar filter control on the Order List page with “All” plus options for karigars present in enriched data and an “Unmapped” option (when applicable), filtering the visible orders/groups accordingly.
+- Ensure the PDF.js browser library is loaded and available at runtime as `window.pdfjsLib` before `parseKarigarMapping(file)` runs.
+- Configure PDF.js worker settings at runtime (e.g., `pdfjsLib.GlobalWorkerOptions.workerSrc`) to work reliably in production builds on the Internet Computer.
+- Improve the Karigar Mapping upload error message when PDF parsing can’t start (missing/unavailable PDF.js) to be actionable in English, preserve whitespace formatting, and suggest retry/refresh or using Excel (.xlsx/.xls) as a fallback.
 
-**User-visible outcome:** Users can upload a fixed-format Master Design File (Design Code, Generic Name, Karigar Name), see clear errors if columns are missing, and filter the Order List by karigar (or show all / unmapped).
+**User-visible outcome:** Uploading a PDF in the Karigar Mapping tab parses successfully in production without the “PDF.js library not loaded” error; if PDF parsing is unavailable, users see a clear English message with next steps and an Excel fallback.

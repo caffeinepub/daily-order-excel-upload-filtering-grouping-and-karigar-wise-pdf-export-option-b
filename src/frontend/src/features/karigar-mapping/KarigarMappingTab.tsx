@@ -21,7 +21,7 @@ export default function KarigarMappingTab() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [lastUploadSummary, setLastUploadSummary] = useState<{ totalEntries: number; sheetNames: string[] } | null>(null);
 
-  const { isReady, isError, error } = useActorWithStatus();
+  const { isReady, isError } = useActorWithStatus();
   const { data: existingMapping } = useGetKarigarMappingWorkbook();
   const saveMappingWorkbook = useSaveKarigarMappingWorkbook();
   
@@ -111,151 +111,164 @@ export default function KarigarMappingTab() {
 
       // Encode to blob with upload progress tracking
       const blob = encodeMappingToBlob(mappingData).withUploadProgress((percentage) => {
-        // Map 30-90% to blob upload progress
+        // Map 30-90% to upload progress
         setUploadProgress(30 + (percentage * 0.6));
       });
 
       setUploadProgress(90);
 
       // Save to backend
-      try {
-        await saveMappingWorkbook.mutateAsync(blob);
-        setUploadProgress(100);
-        setUploadSuccess(true);
-        setLastUploadSummary({ totalEntries, sheetNames });
-        
-        // Clear success message after 5 seconds
-        setTimeout(() => setUploadSuccess(false), 5000);
-      } catch (saveErr: any) {
-        setSaveError(getUserFacingError(saveErr));
-      }
-    } catch (parseErr: any) {
-      setParseError(getUserFacingError(parseErr));
+      await saveMappingWorkbook.mutateAsync(blob);
+      
+      setUploadProgress(100);
+      setUploadSuccess(true);
+      setLastUploadSummary({ totalEntries, sheetNames });
+
+      // Clear the input
+      e.target.value = '';
+
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setUploadSuccess(false);
+      }, 5000);
+    } catch (error: any) {
+      console.error('Mapping upload error:', error);
+      const userError = getUserFacingError(error);
+      setParseError(userError);
+      e.target.value = '';
     } finally {
       setIsUploading(false);
-      e.target.value = '';
-      // Reset progress after a delay
-      setTimeout(() => setUploadProgress(0), 1000);
     }
   };
 
-  // Determine which summary to show
-  const summaryToShow = lastUploadSummary || existingSummary;
-  const showSummary = !isUploading && summaryToShow && summaryToShow.totalEntries > 0;
-
   return (
     <div className="space-y-6">
-      <div className="mb-8 space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight">Karigar Mapping</h2>
-        <p className="text-muted-foreground">
-          Upload Master Design File to enrich orders with generic names and karigar assignments
-        </p>
-      </div>
-
-      {/* Actor error state */}
-      {isError && error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Parse error */}
-      {parseError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="whitespace-pre-wrap">{parseError}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Save error */}
-      {saveError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{saveError}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Success message */}
-      {uploadSuccess && (
-        <Alert className="border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100">
-          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-          <AlertDescription>Master Design File uploaded successfully!</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Mapping summary */}
-      {showSummary && (
-        <Alert className="border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100">
-          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <AlertDescription>
-            <div className="space-y-1">
-              <div className="font-medium">Current Mapping Summary</div>
-              <div className="text-sm">
-                <span className="font-semibold">{summaryToShow.totalEntries}</span> design-karigar mappings loaded
-                {summaryToShow.sheetNames.length > 0 && (
-                  <span className="ml-2 text-muted-foreground">
-                    (from sheet{summaryToShow.sheetNames.length > 1 ? 's' : ''}: {summaryToShow.sheetNames.join(', ')})
-                  </span>
-                )}
-              </div>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Upload Master Design File</CardTitle>
           <CardDescription>
-            Upload an Excel file (.xlsx/.xls) or PDF containing the master design file with required columns
+            Upload an Excel or PDF file containing design-to-karigar mappings with three required columns:
+            Design Code, Generic Name, and Karigar Name
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {isError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Backend connection error. Please refresh the page and try again.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="mapping-file">Select File</Label>
+            <Label htmlFor="mapping-file">Master Design File (.xlsx, .xls, or .pdf)</Label>
             <Input
               id="mapping-file"
               type="file"
-              accept=".xlsx,.xls,.pdf"
+              accept=".xlsx,.xls,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf"
               onChange={handleMappingUpload}
               disabled={isUploading || !isReady}
             />
           </div>
 
-          {isUploading && uploadProgress > 0 && (
+          {isUploading && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Uploading...</span>
-                <span className="font-medium">{Math.round(uploadProgress)}%</span>
-              </div>
-              <Progress value={uploadProgress} />
+              <Progress value={uploadProgress} className="w-full" />
+              <p className="text-sm text-muted-foreground text-center">
+                {uploadProgress < 30 && 'Parsing file...'}
+                {uploadProgress >= 30 && uploadProgress < 90 && 'Uploading...'}
+                {uploadProgress >= 90 && 'Saving...'}
+              </p>
             </div>
           )}
 
-          {existingMapping && !isUploading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileText className="h-4 w-4" />
-              <span>A Master Design File is currently loaded</span>
-            </div>
+          {parseError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="whitespace-pre-wrap">
+                {parseError}
+              </AlertDescription>
+            </Alert>
           )}
 
-          <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-            <h4 className="font-medium text-sm">File Format Requirements</h4>
-            <div className="text-sm text-muted-foreground space-y-2">
-              <p>
-                <strong>Master Design File:</strong> The file must contain all three required columns. Any sheet name is supported.
-              </p>
-              <p>
-                <strong>Required columns:</strong>
-              </p>
-              <ul className="list-disc list-inside ml-2 space-y-1">
-                <li><strong>Design Code</strong> (or "Design", "Product Code", "Item Code")</li>
-                <li><strong>Generic Name</strong> (or "Name", "Product Name", "Description")</li>
-                <li><strong>Karigar Name</strong> (or "Karigar", "Artisan", "Worker", "Craftsman")</li>
+          {saveError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="whitespace-pre-wrap">
+                {saveError}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {uploadSuccess && lastUploadSummary && (
+            <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertDescription className="text-green-800 dark:text-green-200">
+                <div className="font-medium mb-1">Mapping uploaded successfully!</div>
+                <div className="text-sm">
+                  Total entries: {lastUploadSummary.totalEntries}
+                  {lastUploadSummary.sheetNames.length > 0 && (
+                    <div className="mt-1">
+                      Sheets: {lastUploadSummary.sheetNames.join(', ')}
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {existingSummary && !uploadSuccess && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="font-medium mb-1">Current mapping loaded</div>
+                <div className="text-sm">
+                  Total entries: {existingSummary.totalEntries}
+                  {existingSummary.sheetNames.length > 0 && (
+                    <div className="mt-1">
+                      Sheets: {existingSummary.sheetNames.join(', ')}
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>File Format Requirements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start gap-2">
+            <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+            <div>
+              <p className="font-medium">Required Columns (all three must be present):</p>
+              <ul className="list-disc list-inside text-sm text-muted-foreground mt-1 space-y-1">
+                <li><strong>Design Code</strong> - The unique design identifier</li>
+                <li><strong>Generic Name</strong> - The product name or description</li>
+                <li><strong>Karigar Name</strong> - The artisan assigned to this design</li>
               </ul>
-              <p className="text-xs mt-2">
-                <strong>Note:</strong> Screenshots and images cannot be parsed. Please use Excel or PDF files only.
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+            <div>
+              <p className="font-medium">Supported Formats:</p>
+              <ul className="list-disc list-inside text-sm text-muted-foreground mt-1 space-y-1">
+                <li>Excel files (.xlsx, .xls) - Multiple sheets supported</li>
+                <li>PDF files with tabular data</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
+            <div>
+              <p className="text-sm text-muted-foreground">
+                The file will be scanned for sheets containing all three required columns.
+                Sheets missing any required column will be skipped with a detailed error message.
               </p>
             </div>
           </div>

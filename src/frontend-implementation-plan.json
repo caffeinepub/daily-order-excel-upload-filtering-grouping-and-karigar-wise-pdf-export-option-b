@@ -1,53 +1,85 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fixed Master Design File upload + Karigar filtering on Order List",
+  "title": "Fix PDF.js loading and worker configuration for Karigar Mapping PDF uploads",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Make the mapping upload a fixed Master Design File with required columns (Design Code, Generic Name, Karigar Name) and update UI messaging + validation accordingly.",
+      "summary": "Ensure PDF.js browser library is loaded and available as window.pdfjsLib before Karigar Mapping parses PDF uploads.",
       "acceptanceCriteria": [
-        "In the Mapping upload UI, user-facing instructions no longer mention optional columns or priority sheet rules; they specify that the master design file must contain Design Code, Generic Name, and Karigar Name.",
-        "Uploading an Excel/PDF mapping file that does not contain all three required columns results in a clear error message indicating which required column(s) are missing.",
-        "When a valid master design file is uploaded, the saved mapping blob contains entries that include design, genericName, and karigar for each row (as applicable), and decoding continues to work with useKarigarMappingLookup()."
+        "Uploading a .pdf in the Karigar Mapping tab no longer fails with the error text \"PDF.js library not loaded\".",
+        "The PDF.js library is available at runtime as window.pdfjsLib before parseKarigarMapping(file) attempts to parse a PDF."
       ],
       "file_operations": [
         {
+          "path": "frontend/index.html",
+          "operation": "modify",
+          "description": "Load the PDF.js browser bundle as a static script (in addition to the existing SheetJS script) so window.pdfjsLib is present at runtime for PDF parsing."
+        },
+        {
+          "path": "frontend/public/vendor/pdfjs/pdf.min.js",
+          "operation": "create",
+          "description": "Add the PDF.js browser distribution file that exposes pdfjsLib on the window object for use by the existing PDF parsing logic."
+        },
+        {
+          "path": "frontend/src/utils/pdfjs.ts",
+          "operation": "create",
+          "description": "Create a small runtime helper that verifies window.pdfjsLib is available (and can optionally attempt to load/validate it) before PDF parsing starts."
+        },
+        {
           "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
           "operation": "modify",
-          "description": "Update parsing/validation to treat the upload as a fixed Master Design File: require header presence for Design Code + Generic Name + Karigar Name (while still allowing any sheet name), and emit clear missing-column errors naming the exact missing required column(s) for both Excel and PDF parsing."
-        },
-        {
-          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-          "operation": "modify",
-          "description": "Update Mapping upload UI copy to remove optional-column and priority-sheet messaging; rename/position the upload as a Master Design File with the three required columns (English text), and ensure error rendering remains clear for missing required columns."
-        },
-        {
-          "path": "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts",
-          "operation": "modify",
-          "description": "Adjust encoding/decoding expectations to align with the fixed Master Design File fields (design, karigar, genericName) while maintaining backward-compatible decoding for existing blobs and preserving useKarigarMappingLookup() behavior."
+          "description": "Integrate the PDF.js availability check so PDF parsing attempts only proceed when window.pdfjsLib is present; otherwise throw a consistent missing-library error used by the UI."
         }
       ]
     },
     {
       "id": "REQ-2",
-      "summary": "Add a Karigar filter control on Order List and filter displayed groups/orders by selected karigar, including All and Unmapped options, while keeping design-code normalization enrichment.",
+      "summary": "Configure PDF.js worker source at runtime so PDF parsing works reliably in production builds on the Internet Computer.",
       "acceptanceCriteria": [
-        "Order List enrichment continues to match orders to mappings via normalized design code comparison (orders show Generic Name and Karigar Name when mapped).",
-        "Order List page provides a user control (e.g., Select) to choose a karigar (including an “All” option).",
-        "Selecting a specific karigar shows only that karigar’s orders; selecting “All” shows all karigar groups (current behavior preserved).",
-        "The filter options include at least all karigars present in the enriched order data plus an Unmapped option (when applicable)."
+        "PDF parsing works in production (not just local dev) for at least one multi-page PDF mapping file.",
+        "No console error about missing/failed PDF worker occurs during PDF parsing (or a documented fallback disables the worker cleanly without breaking parsing)."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/features/order-list/OrderListTab.tsx",
-          "operation": "modify",
-          "description": "Add a Karigar filter UI control (English text) that is populated from enriched order data (unique karigars + All, and Unmapped when applicable), wire it to selectedKarigar state, and filter the rendered group(s) accordingly while preserving existing normalized design-code enrichment."
+          "path": "frontend/public/vendor/pdfjs/pdf.worker.min.js",
+          "operation": "create",
+          "description": "Add the PDF.js worker file as a static asset so the app can point pdfjsLib.GlobalWorkerOptions.workerSrc to a same-origin URL in production."
         },
         {
-          "path": "frontend/src/features/order-list/components/KarigarOrderGroups.tsx",
+          "path": "frontend/src/utils/pdfjs.ts",
           "operation": "modify",
-          "description": "Ensure group rendering behavior correctly supports the new filter options, especially the Unmapped group (only shown/selectable when there are unmapped orders) and preserves existing All behavior."
+          "description": "Configure pdfjsLib.GlobalWorkerOptions.workerSrc to the bundled worker asset URL and provide a safe fallback (e.g., disableWorker) if worker setup fails, without breaking PDF parsing."
+        },
+        {
+          "path": "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
+          "operation": "modify",
+          "description": "Ensure PDF document loading uses the worker-configured pdfjsLib setup (and uses the documented fallback path if worker configuration is unavailable)."
+        },
+        {
+          "path": "frontend/ic-assets.json5",
+          "operation": "modify",
+          "description": "Verify static asset caching rules cover the added PDF.js vendor files so they are served correctly in production on the Internet Computer."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Show an actionable, English Karigar Mapping upload error when PDF.js is missing/unavailable, guiding users to retry or use Excel.",
+      "acceptanceCriteria": [
+        "When PDF parsing cannot start due to missing/unavailable PDF.js, the UI displays an English error message that tells the user what to do next (e.g., refresh/retry, or upload .xlsx/.xls instead).",
+        "The error is shown in the existing Karigar Mapping tab error area and preserves whitespace formatting (whitespace-pre-wrap)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/utils/userFacingError.ts",
+          "operation": "modify",
+          "description": "Add explicit handling for the \"PDF.js library not loaded\" (and related worker/initialization failures) to return an actionable, multi-line English message advising refresh/retry and Excel (.xlsx/.xls) fallback."
+        },
+        {
+          "path": "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+          "operation": "modify",
+          "description": "Ensure PDF.js missing/unavailable errors are surfaced through the existing Karigar Mapping error area (already whitespace-pre-wrap) without being overwritten by generic messaging."
         }
       ]
     }

@@ -1,45 +1,40 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Project to support uploading a master design file (design code, generic name, karigar name), matching uploaded design codes to orders, and enabling filtering of the order list by karigar.",
-  "architectural_notes": [
-    "Introduce a master design mapping dataset (design code -> generic name, karigar name) used to enrich orders and drive karigar-based filtering in the order list."
+  "summary": "New project",
+  "architectural_notes": [],
+  "known_issues": [
+    "PDF.js library not loaded error occurring in karigar mapping."
   ],
-  "known_issues": [],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-update-the-master-mapping-upload-parsing-flow-so-the-uploaded-file-is-treated-as-the-fixed-master-design-file-with-required-columns-design-code-generic-name-and-karigar-name-remove-the-current-flexible-optional-rules-messaging-and-align-validation-parsing-expectations-to-these-three-required-fields-while-still-allowing-any-sheet-name",
-      "title": "Update the master mapping upload/parsing flow so the uploaded file is treated as the fixed “Master Design File” with required columns: Design Code, Generic Name, and Karigar Name. Remove the current flexible/optional rules messaging and align validation + parsing expectations to these three required fields (while still allowing any sheet name).",
+      "id": "feature-load-the-pdf-js-browser-library-so-that-pdf-uploads-in-karigar-mapping-can-be-parsed-without-throwing-pdf-js-library-not-loaded",
+      "title": "Load the PDF.js browser library so that PDF uploads in Karigar Mapping can be parsed without throwing \"PDF.js library not loaded\".",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     },
     {
-      "id": "feature-ensure-orders-are-matched-enriched-using-master-design-file-design-codes-using-the-existing-canonical-design-normalization-and-expose-a-karigar-filter-control-on-the-order-list-page-that-filters-the-displayed-orders-groups-by-the-selected-karigar",
-      "title": "Ensure orders are matched/enriched using master design file design codes (using the existing canonical design normalization) and expose a Karigar filter control on the Order List page that filters the displayed orders/groups by the selected karigar.",
+      "id": "feature-configure-pdf-js-worker-setup-at-runtime-e-g-set-pdfjslib-globalworkeroptions-workersrc-so-pdf-parsing-works-reliably-in-production-builds-on-the-internet-computer",
+      "title": "Configure PDF.js worker setup at runtime (e.g., set pdfjsLib.GlobalWorkerOptions.workerSrc) so PDF parsing works reliably in production builds on the Internet Computer.",
       "reqIds": [
         "REQ-2"
       ],
       "version": 1
-    }
-  ],
-  "new_feature_requests": [
-    {
-      "id": "AR-1",
-      "summary": "Allow uploading a master design file containing design code, generic name, and karigar name (treated as the fixed source of truth) and remove the current related rules/constraints.",
-      "reqIds": [],
-      "status": "pending"
     },
     {
-      "id": "AR-2",
-      "summary": "Match master design codes to orders and enable filtering the order list page by karigar.",
-      "reqIds": [],
-      "status": "pending"
+      "id": "feature-improve-the-karigar-mapping-upload-error-message-for-missing-pdf-js-so-it-is-actionable-for-end-users-english-including-guidance-to-retry-or-use-excel-as-a-fallback-when-pdf-parsing-is-unavailable",
+      "title": "Improve the Karigar Mapping upload error message for missing PDF.js so it is actionable for end users (English), including guidance to retry or use Excel as a fallback when PDF parsing is unavailable.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
     }
   ],
-  "projectName": "Support master design file upload (Design Code + Generic Name + Karigar Name) and add karigar filtering on Order List",
+  "new_feature_requests": [],
+  "projectName": "Fix “PDF.js library not loaded” error for PDF karigar mapping uploads",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

@@ -1,68 +1,70 @@
 {
   "kind": "build_request",
-  "title": "Support master design file upload (Design Code + Generic Name + Karigar Name) and add karigar filtering on Order List",
-  "priority": "normal",
+  "title": "Fix “PDF.js library not loaded” error for PDF karigar mapping uploads",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Update the master mapping upload/parsing flow so the uploaded file is treated as the fixed “Master Design File” with required columns: Design Code, Generic Name, and Karigar Name. Remove the current flexible/optional rules messaging and align validation + parsing expectations to these three required fields (while still allowing any sheet name).",
+      "text": "Load the PDF.js browser library so that PDF uploads in Karigar Mapping can be parsed without throwing \"PDF.js library not loaded\".",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-6"
         ],
         "quotes": [
-          "Remove these rules. Master design file design code, generic name, karigar name will be uploaded and it will be fixed."
+          "PDF.js library not loaded\n\nError pertains in karigar mapping"
         ]
       },
       "acceptanceCriteria": [
-        "In the Mapping upload UI, user-facing instructions no longer mention optional columns or priority sheet rules; they specify that the master design file must contain Design Code, Generic Name, and Karigar Name.",
-        "Uploading an Excel/PDF mapping file that does not contain all three required columns results in a clear error message indicating which required column(s) are missing.",
-        "When a valid master design file is uploaded, the saved mapping blob contains entries that include design, genericName, and karigar for each row (as applicable), and decoding continues to work with useKarigarMappingLookup()."
+        "Uploading a .pdf in the Karigar Mapping tab no longer fails with the error text \"PDF.js library not loaded\".",
+        "The PDF.js library is available at runtime as window.pdfjsLib before parseKarigarMapping(file) attempts to parse a PDF."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Ensure orders are matched/enriched using master design file design codes (using the existing canonical design normalization) and expose a Karigar filter control on the Order List page that filters the displayed orders/groups by the selected karigar.",
+      "text": "Configure PDF.js worker setup at runtime (e.g., set pdfjsLib.GlobalWorkerOptions.workerSrc) so PDF parsing works reliably in production builds on the Internet Computer.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-6"
         ],
         "quotes": [
-          "Also match such codes with the orders and filter orders as per karigar on order list page."
+          "PDF.js library not loaded\n\nError pertains in karigar mapping"
         ]
       },
       "acceptanceCriteria": [
-        "Order List enrichment continues to match orders to mappings via normalized design code comparison (orders show Generic Name and Karigar Name when mapped).",
-        "Order List page provides a user control (e.g., Select) to choose a karigar (including an “All” option).",
-        "Selecting a specific karigar shows only that karigar’s orders; selecting “All” shows all karigar groups (current behavior preserved).",
-        "The filter options include at least all karigars present in the enriched order data plus an Unmapped option (when applicable)."
+        "PDF parsing works in production (not just local dev) for at least one multi-page PDF mapping file.",
+        "No console error about missing/failed PDF worker occurs during PDF parsing (or a documented fallback disables the worker cleanly without breaking parsing)."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Improve the Karigar Mapping upload error message for missing PDF.js so it is actionable for end users (English), including guidance to retry or use Excel as a fallback when PDF parsing is unavailable.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-6"
+        ],
+        "quotes": [
+          "PDF.js library not loaded\n\nError pertains in karigar mapping"
+        ]
+      },
+      "acceptanceCriteria": [
+        "When PDF parsing cannot start due to missing/unavailable PDF.js, the UI displays an English error message that tells the user what to do next (e.g., refresh/retry, or upload .xlsx/.xls instead).",
+        "The error is shown in the existing Karigar Mapping tab error area and preserves whitespace formatting (whitespace-pre-wrap)."
       ]
     }
   ],
   "constraints": [
-    "Backend remains single-actor (all Motoko logic in backend/main.mo).",
-    "Do not edit frontend immutable paths listed in SYSTEM_CONTEXT (compose existing UI components instead).",
-    "Use English for any user-facing text."
+    "Do not modify any files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui (immutable paths).",
+    "Keep all changes within the existing single-page React app; do not add new backend services."
   ],
   "nonGoals": [
-    "Adding third-party authentication providers (only Internet Identity).",
-    "Adding external databases or non-Motoko backend services.",
-    "Parsing screenshots/images for mapping upload (no OCR scope)."
+    "Changing the karigar mapping data model or backend storage format.",
+    "Implementing PDF export or generating PDFs for downloads (this issue is only about parsing uploaded PDF mapping files)."
   ],
   "imageRequirements": {
     "required": [],
     "edits": []
-  },
-  "userProfileUpdate": {
-    "goalsToAdd": [],
-    "goalsToRemove": [],
-    "preferencesToAdd": [],
-    "preferencesToRemove": [],
-    "miscToAdd": [],
-    "miscToRemove": [],
-    "fieldsToSet": {},
-    "fieldsToDelete": []
   }
 }

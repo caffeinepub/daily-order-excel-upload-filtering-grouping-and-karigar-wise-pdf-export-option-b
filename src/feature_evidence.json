@@ -2,12 +2,12 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-update-the-master-mapping-upload-parsing-flow-so-the-uploaded-file-is-treated-as-the-fixed-master-design-file-with-required-columns-design-code-generic-name-and-karigar-name-remove-the-current-flexible-optional-rules-messaging-and-align-validation-parsing-expectations-to-these-three-required-fields-while-still-allowing-any-sheet-name",
-      "featureTitle": "Update the master mapping upload/parsing flow so the uploaded file is treated as the fixed “Master Design File” with required columns: Design Code, Generic Name, and Karigar Name. Remove the current flexible/optional rules messaging and align validation + parsing expectations to these three required fields (while still allowing any sheet name).",
+      "featureId": "feature-load-the-pdf-js-browser-library-so-that-pdf-uploads-in-karigar-mapping-can-be-parsed-without-throwing-pdf-js-library-not-loaded",
+      "featureTitle": "Load the PDF.js browser library so that PDF uploads in Karigar Mapping can be parsed without throwing \"PDF.js library not loaded\".",
       "files": [
+        "frontend/index.html",
         "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
-        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
-        "frontend/src/features/karigar-mapping/karigarMappingBlobCodec.ts"
+        "frontend/src/utils/pdfjs.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -24,11 +24,11 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-ensure-orders-are-matched-enriched-using-master-design-file-design-codes-using-the-existing-canonical-design-normalization-and-expose-a-karigar-filter-control-on-the-order-list-page-that-filters-the-displayed-orders-groups-by-the-selected-karigar",
-      "featureTitle": "Ensure orders are matched/enriched using master design file design codes (using the existing canonical design normalization) and expose a Karigar filter control on the Order List page that filters the displayed orders/groups by the selected karigar.",
+      "featureId": "feature-configure-pdf-js-worker-setup-at-runtime-e-g-set-pdfjslib-globalworkeroptions-workersrc-so-pdf-parsing-works-reliably-in-production-builds-on-the-internet-computer",
+      "featureTitle": "Configure PDF.js worker setup at runtime (e.g., set pdfjsLib.GlobalWorkerOptions.workerSrc) so PDF parsing works reliably in production builds on the Internet Computer.",
       "files": [
-        "frontend/src/features/order-list/OrderListTab.tsx",
-        "frontend/src/features/order-list/components/KarigarOrderGroups.tsx"
+        "frontend/src/features/daily-orders/excel/parseKarigarMapping.ts",
+        "frontend/src/utils/pdfjs.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -41,6 +41,27 @@
       ],
       "testIds": [
         "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-improve-the-karigar-mapping-upload-error-message-for-missing-pdf-js-so-it-is-actionable-for-end-users-english-including-guidance-to-retry-or-use-excel-as-a-fallback-when-pdf-parsing-is-unavailable",
+      "featureTitle": "Improve the Karigar Mapping upload error message for missing PDF.js so it is actionable for end users (English), including guidance to retry or use Excel as a fallback when PDF parsing is unavailable.",
+      "files": [
+        "frontend/src/features/karigar-mapping/KarigarMappingTab.tsx",
+        "frontend/src/utils/userFacingError.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "blob-storage@4.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
       ],
       "confidence": "high"
     }
